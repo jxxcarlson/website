@@ -114,9 +114,16 @@ noteCtx =
 txtCompiler :: Compiler (Item String)
 txtCompiler = do
     body <- getResourceBody
-    let result = runPure $ do
-            doc <- readMarkdown defaultHakyllReaderOptions (T.pack $ itemBody body)
-            writeHtml5String defaultHakyllWriterOptions doc
+    let readerOpts = defaultHakyllReaderOptions
+            { readerExtensions = enableExtension Ext_tex_math_dollars $
+                                 enableExtension Ext_tex_math_double_backslash $
+                                 readerExtensions defaultHakyllReaderOptions
+            }
+        writerOpts = defaultHakyllWriterOptions
+            { writerHTMLMathMethod = MathJax "" }
+        result = runPure $ do
+            doc <- readMarkdown readerOpts (T.pack $ itemBody body)
+            writeHtml5String writerOpts doc
     case result of
         Left err -> fail $ show err
         Right html -> makeItem (T.unpack html)
