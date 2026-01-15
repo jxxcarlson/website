@@ -10,7 +10,7 @@ import Scripta (processScripta)
 main :: IO ()
 main = hakyll $ do
     -- Static files
-    match "images/*" $ do
+    match "images/**" $ do
         route   idRoute
         compile copyFileCompiler
 
@@ -21,17 +21,23 @@ main = hakyll $ do
     -- Pages
     match "pages/*" $ do
         route   $ gsubRoute "pages/" (const "") `composeRoutes` setExtension "html"
-        compile $ pandocCompiler
+        compile $ scriptaCompiler
             >>= loadAndApplyTemplate "templates/default.html" defaultContext
             >>= relativizeUrls
 
     -- Posts
     match "posts/**" $ do
         route $ setExtension "html"
-        compile $ pandocCompiler
+        compile $ scriptaCompiler
             >>= loadAndApplyTemplate "templates/post.html"    postCtx
             >>= loadAndApplyTemplate "templates/default.html" postCtx
             >>= relativizeUrls
+
+    match "photography/**" $ do
+            route $ setExtension "html"
+            compile $ scriptaCompiler
+                >>= loadAndApplyTemplate "templates/photography.html" defaultContext
+                >>= relativizeUrls
 
 
     match "archive/**.txt" $ do
@@ -93,7 +99,7 @@ main = hakyll $ do
     -- Projects page
     match "projects.md" $ do
         route $ setExtension "html"
-        compile $ pandocCompiler
+        compile $ scriptaCompiler
             >>= loadAndApplyTemplate "templates/default.html" defaultContext
             >>= relativizeUrls
 
