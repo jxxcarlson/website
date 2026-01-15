@@ -1,0 +1,45 @@
+/* Photography pages - dark theme */
+body.photography {
+    background-color: #0a0a0a;
+    color: #e0e0e0;
+}
+
+body.photography header {
+    border-bottom-color: #333;
+}
+
+body.photography nav a {
+    color: #b0b0b0;
+}
+
+body.photography nav a:hover {
+    color: #ffffff;
+}
+
+body.photography a {
+    color: #b0b0b0;
+}
+
+body.photography a:hover {
+    color: #ffffff;
+}
+
+body.photography footer {
+    border-top-color: #333;
+    color: #888;
+}
+
+body.photography footer a {
+    color: #888;
+}
+
+body.photography figcaption,
+body.photography .bg-caption {
+    color: #aaa;
+}
+
+body.photography h1,
+body.photography h2,
+body.photography h3 {
+    color: #e8e8e8;
+}
