@@ -36,8 +36,8 @@ main = hakyll $ do
     match "archive/**.txt" $ do
           route $ setExtension "html"
           compile $ txtCompiler
-              >>= loadAndApplyTemplate "templates/note.html" defaultContext
-              >>= loadAndApplyTemplate "templates/default.html" defaultContext
+              >>= loadAndApplyTemplate "templates/note.html" noteCtx
+              >>= loadAndApplyTemplate "templates/default.html" noteCtx
               >>= relativizeUrls
 
     match "archive/media/**" $ do
