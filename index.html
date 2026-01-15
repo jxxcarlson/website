@@ -1,0 +1,17 @@
+---
+title: Home
+---
+
+<p>Welcome to my site!</p>
+
+<h2>Recent Posts</h2>
+
+<ul>
+    $for(posts)$
+        <li>
+            <a href="$url$">$title$</a> &mdash; $date$
+        </li>
+    $endfor$
+</ul>
+
+<p><a href="/archive.html">See all posts...</a></p>

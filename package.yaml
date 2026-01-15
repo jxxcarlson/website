@@ -1,0 +1,18 @@
+name: website
+version: 0.1.0.0
+synopsis: Personal website built with Hakyll
+license: BSD-3-Clause
+author: Author
+maintainer: author@example.com
+
+dependencies:
+  - base >= 4.14 && < 5
+  - hakyll >= 4.15 && < 5
+  - pandoc
+  - text
+
+executables:
+  site:
+    main: Site.hs
+    ghc-options:
+      - -threaded
