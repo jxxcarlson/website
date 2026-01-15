@@ -1,0 +1,10 @@
+<p>Recent posts:</p>
+
+<ul>
+    $for(posts)$
+        <li>
+            <span class="post-date">$date$</span> &mdash;
+            <a href="$url$">$title$</a>
+        </li>
+    $endfor$
+</ul>
