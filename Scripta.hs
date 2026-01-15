@@ -92,6 +92,7 @@ getProp key block = lookup key (blockProps block)
 renderBlock :: Block -> [String]
 renderBlock block = case blockType block of
     "image" -> renderImage block
+    "hide"  -> []  -- Hidden content, renders nothing
     _ -> ["<!-- Unknown Scripta block: " ++ blockType block ++ " -->"]
 
 -- | Render an image block
