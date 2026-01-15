@@ -91,3 +91,38 @@ footer {
     color: #666;
     font-size: 0.9rem;
 }
+
+/* Background images (Scripta | image background) */
+.background-image {
+    background-size: cover;
+    background-position: center;
+    margin-bottom: 0.15rem;
+    border-radius: 5px;
+}
+
+.bg-caption {
+    font-size: 0.85em;
+    color: #666;
+    margin-bottom: 1.5rem;
+    text-align: right;
+}
+
+/* Figures (normal images with captions) */
+figure {
+    margin: 1.5rem 0;
+    text-align: center;
+}
+
+figure img {
+    display: block;
+    max-width: 100%;
+    height: auto;
+    margin: 0 auto;
+}
+
+figcaption {
+    font-size: 0.85em;
+    color: #666;
+    margin-top: 0.15rem;
+    text-align: center;
+}
