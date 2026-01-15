@@ -43,3 +43,61 @@ body.photography h2,
 body.photography h3 {
     color: #e8e8e8;
 }
+
+/* Slideshow */
+.slideshow {
+    text-align: center;
+    margin: 2rem 0;
+}
+
+.slide {
+    display: none;
+}
+
+.slide.active {
+    display: block;
+}
+
+.slide img {
+    max-width: 100%;
+    height: auto;
+}
+
+.slide-caption {
+    font-size: 0.9em;
+    color: #aaa;
+    margin-top: 0.5rem;
+}
+
+.slideshow-controls {
+    margin-top: 1rem;
+    display: flex;
+    flex-wrap: nowrap;
+    justify-content: center;
+    align-items: baseline;
+    gap: 0.3rem;
+}
+
+.slide-btn {
+    background: #333;
+    border: none;
+    color: #ccc;
+    font-size: 0.9rem;
+    padding: 0.25rem 0.5rem;
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background 0.2s, color 0.2s;
+    line-height: 1;
+}
+
+.slide-btn:hover {
+    background: #444;
+    color: #fff;
+}
+
+.slide-counter {
+    color: #888;
+    font-size: 0.85rem;
+    min-width: 3rem;
+    text-align: center;
+}

@@ -91,8 +91,9 @@ getProp key block = lookup key (blockProps block)
 -- | Render a block to HTML lines
 renderBlock :: Block -> [String]
 renderBlock block = case blockType block of
-    "image" -> renderImage block
-    "hide"  -> []  -- Hidden content, renders nothing
+    "image"     -> renderImage block
+    "slideshow" -> renderSlideshow block
+    "hide"      -> []  -- Hidden content, renders nothing
     _ -> ["<!-- Unknown Scripta block: " ++ blockType block ++ " -->"]
 
 -- | Render an image block
@@ -135,6 +136,64 @@ renderBackgroundImage imgPath block =
     in [ "<div class=\"background-image\" style=\"background-image: url('" ++ imgPath ++ "'); height: " ++ height ++ "px;\">"
        , "</div>"
        ] ++ captionHtml
+
+-- | Render a slideshow block
+-- Content lines: path/to/image.png | Caption text
+renderSlideshow :: Block -> [String]
+renderSlideshow block =
+    let slides = parseSlides (blockContent block)
+        width = fromMaybe "600" (getProp "width" block)
+        total = length slides
+        slideHtml = concatMap (renderSlide width) (zip [0..] slides)
+    in [ "<div class=\"slideshow\" data-total=\"" ++ show total ++ "\">" ]
+       ++ slideHtml
+       ++ [ "<div class=\"slideshow-controls\">"
+          , "<button class=\"slide-btn slide-first\" onclick=\"slideshowFirst(this)\">⏮</button>"
+          , "<button class=\"slide-btn slide-prev\" onclick=\"slideshowPrev(this)\">◀</button>"
+          , "<span class=\"slide-counter\"><span class=\"slide-current\">1</span> / " ++ show total ++ "</span>"
+          , "<button class=\"slide-btn slide-next\" onclick=\"slideshowNext(this)\">▶</button>"
+          , "<button class=\"slide-btn slide-last\" onclick=\"slideshowLast(this)\">⏭</button>"
+          , "</div>"
+          , "</div>"
+          , "<script>"
+          , "function slideshowNav(btn, delta) {"
+          , "var ss = btn.closest('.slideshow');"
+          , "var slides = ss.querySelectorAll('.slide');"
+          , "var total = slides.length;"
+          , "var current = parseInt(ss.dataset.current || '0');"
+          , "slides[current].classList.remove('active');"
+          , "current = Math.max(0, Math.min(total - 1, current + delta));"
+          , "slides[current].classList.add('active');"
+          , "ss.dataset.current = current;"
+          , "ss.querySelector('.slide-current').textContent = current + 1;"
+          , "}"
+          , "function slideshowNext(btn) { slideshowNav(btn, 1); }"
+          , "function slideshowPrev(btn) { slideshowNav(btn, -1); }"
+          , "function slideshowFirst(btn) { slideshowNav(btn, -9999); }"
+          , "function slideshowLast(btn) { slideshowNav(btn, 9999); }"
+          , "</script>"
+          ]
+
+-- | Parse slide content lines: "path.png | caption" or just "path.png"
+parseSlides :: [String] -> [(String, Maybe String)]
+parseSlides = map parseSlideLine . filter (not . all isSpace)
+  where
+    parseSlideLine line =
+        case break (== '|') line of
+            (path, '|':caption) -> (trim path, Just (trim caption))
+            (path, _) -> (trim path, Nothing)
+
+-- | Render a single slide
+renderSlide :: String -> (Int, (String, Maybe String)) -> [String]
+renderSlide width (idx, (path, caption)) =
+    let imgPath = "/images/" ++ path
+        activeClass = if idx == 0 then " active" else ""
+        captionHtml = maybe "" (\c -> "<div class=\"slide-caption\">" ++ c ++ "</div>") caption
+    in [ "<div class=\"slide" ++ activeClass ++ "\" data-index=\"" ++ show idx ++ "\">"
+       , "<img src=\"" ++ imgPath ++ "\" width=\"" ++ width ++ "\">"
+       , captionHtml
+       , "</div>"
+       ]
 
 -- | Extract filename from path
 takeFileName :: String -> String
