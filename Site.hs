@@ -5,6 +5,7 @@ import qualified Data.Text as T
 import Hakyll
 import Text.Pandoc
 import Text.Pandoc.Options
+import Scripta (processScripta)
 
 main :: IO ()
 main = hakyll $ do
@@ -74,19 +75,34 @@ main = hakyll $ do
                 >>= loadAndApplyTemplate "templates/default.html" archiveCtx
                 >>= relativizeUrls
 
-    -- Index page
-    match "index.html" $ do
+    -- Blog page (posts listing)
+    create ["blog.html"] $ do
         route idRoute
         compile $ do
             posts <- recentFirst =<< loadAll "posts/**"
-            let indexCtx =
+            let blogCtx =
                     listField "posts" postCtx (return posts) `mappend`
+                    constField "title" "Blog"                `mappend`
                     defaultContext
 
-            getResourceBody
-                >>= applyAsTemplate indexCtx
-                >>= loadAndApplyTemplate "templates/default.html" indexCtx
+            makeItem ""
+                >>= loadAndApplyTemplate "templates/blog.html" blogCtx
+                >>= loadAndApplyTemplate "templates/default.html" blogCtx
                 >>= relativizeUrls
+
+    -- Projects page
+    match "projects.md" $ do
+        route $ setExtension "html"
+        compile $ pandocCompiler
+            >>= loadAndApplyTemplate "templates/default.html" defaultContext
+            >>= relativizeUrls
+
+    -- Index page (landing page) - supports Scripta markup
+    match "index.md" $ do
+        route $ setExtension "html"
+        compile $ scriptaCompiler
+            >>= loadAndApplyTemplate "templates/default.html" defaultContext
+            >>= relativizeUrls
 
     -- Templates
     match "templates/*" $ compile templateBodyCompiler
@@ -124,6 +140,18 @@ txtCompiler = do
         result = runPure $ do
             doc <- readMarkdown readerOpts (T.pack $ itemBody body)
             writeHtml5String writerOpts doc
+    case result of
+        Left err -> fail $ show err
+        Right html -> makeItem (T.unpack html)
+
+-- | Compiler that preprocesses Scripta markup before Pandoc
+scriptaCompiler :: Compiler (Item String)
+scriptaCompiler = do
+    body <- getResourceBody
+    let processed = processScripta (itemBody body)
+        result = runPure $ do
+            doc <- readMarkdown defaultHakyllReaderOptions (T.pack processed)
+            writeHtml5String defaultHakyllWriterOptions doc
     case result of
         Left err -> fail $ show err
         Right html -> makeItem (T.unpack html)
