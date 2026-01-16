@@ -1,0 +1,16 @@
+---
+title: Ether
+---
+
+
+This piece is dedicated to my dear friend and long-time mathematical collaborator, Domingo Toledo.  He passed away in 2025.
+
+This recording was made at home on December 4 in rehearsal for
+our December 6 concert at   The pianist is 
+[Lora Al-Ahmad](https://hbms.org/faculty_bio/lora-al-ahmad/?utm_source=chatgpt.com).
+
+| audio Ether
+music/Ether_audio_only.mov
+
+| pdf
+music/ether.pdf

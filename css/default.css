@@ -127,3 +127,31 @@ figcaption {
     margin-top: 0.15rem;
     text-align: center;
 }
+
+/* Audio blocks */
+.audio-block {
+    margin: 1rem 0;
+}
+
+.audio-title {
+    display: inline-block;
+    font-size: 1.1rem;
+    color: #0066cc;
+    text-decoration: none;
+    padding: 0.4rem 0;
+    cursor: pointer;
+    transition: color 0.2s;
+}
+
+.audio-title::before {
+    content: "▶ ";
+    font-size: 0.85em;
+}
+
+.audio-title.playing::before {
+    content: "❚❚ ";
+}
+
+.audio-title:hover {
+    color: #004499;
+}

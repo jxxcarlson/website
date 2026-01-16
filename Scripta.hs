@@ -94,6 +94,7 @@ renderBlock block = case blockType block of
     "image"     -> renderImage block
     "slideshow" -> renderSlideshow block
     "pdf"       -> renderPdf block
+    "audio"     -> renderAudio block
     "hide"      -> []  -- Hidden content, renders nothing
     _ -> ["<!-- Unknown Scripta block: " ++ blockType block ++ " -->"]
 
@@ -152,6 +153,31 @@ renderPdf block =
     in [ "<object data=\"" ++ pdfPath ++ "\" type=\"application/pdf\" width=\"" ++ width ++ "\" height=\"" ++ height ++ "\">"
        , "<p>Unable to display PDF. <a href=\"" ++ pdfPath ++ "\">Download PDF</a></p>"
        , "</object>"
+       ]
+
+-- | Render an audio block
+-- Props: title (clickable title that plays audio)
+-- Content: path to audio file
+renderAudio :: Block -> [String]
+renderAudio block =
+    let filename = case blockContent block of
+            (f:_) -> trim f
+            [] -> ""
+        audioPath = "/files/" ++ filename
+        title = fromMaybe filename (getProp "title" block)
+        audioId = "audio-" ++ filter (`elem` (['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'])) filename
+    in [ "<div class=\"audio-block\">"
+       , "<a href=\"#\" id=\"" ++ audioId ++ "-link\" class=\"audio-title\" onclick=\"toggleAudio('" ++ audioId ++ "'); return false;\">" ++ title ++ "</a>"
+       , "<audio id=\"" ++ audioId ++ "\" src=\"" ++ audioPath ++ "\" onended=\"document.getElementById('" ++ audioId ++ "-link').classList.remove('playing');\"></audio>"
+       , "</div>"
+       , "<script>"
+       , "function toggleAudio(id) {"
+       , "  var a = document.getElementById(id);"
+       , "  var link = document.getElementById(id + '-link');"
+       , "  if (a.paused) { a.play(); link.classList.add('playing'); }"
+       , "  else { a.pause(); link.classList.remove('playing'); }"
+       , "}"
+       , "</script>"
        ]
 
 -- | Render a slideshow block
