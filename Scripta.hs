@@ -93,6 +93,7 @@ renderBlock :: Block -> [String]
 renderBlock block = case blockType block of
     "image"     -> renderImage block
     "slideshow" -> renderSlideshow block
+    "pdf"       -> renderPdf block
     "hide"      -> []  -- Hidden content, renders nothing
     _ -> ["<!-- Unknown Scripta block: " ++ blockType block ++ " -->"]
 
@@ -136,6 +137,22 @@ renderBackgroundImage imgPath block =
     in [ "<div class=\"background-image\" style=\"background-image: url('" ++ imgPath ++ "'); height: " ++ height ++ "px;\">"
        , "</div>"
        ] ++ captionHtml
+
+-- | Render a PDF block
+-- Props: width (default 100%), height (default 600px)
+-- Content: path to PDF file
+renderPdf :: Block -> [String]
+renderPdf block =
+    let filename = case blockContent block of
+            (f:_) -> trim f
+            [] -> ""
+        pdfPath = "/files/" ++ filename
+        width = fromMaybe "100%" (getProp "width" block)
+        height = fromMaybe "600px" (getProp "height" block)
+    in [ "<object data=\"" ++ pdfPath ++ "\" type=\"application/pdf\" width=\"" ++ width ++ "\" height=\"" ++ height ++ "\">"
+       , "<p>Unable to display PDF. <a href=\"" ++ pdfPath ++ "\">Download PDF</a></p>"
+       , "</object>"
+       ]
 
 -- | Render a slideshow block
 -- Content lines: path/to/image.png | Caption text

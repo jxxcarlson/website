@@ -14,6 +14,7 @@ nyc/Musicians_Retirement_IMG_1832.png | Musician's Retirement Plan
 nyc/Mural_I_IMG_3130.png | Mural I
 nyc/Mural_II_IMG_2199.png | Mural II
 nyc/Mural_III_IMG_2197.png | Mural III
-nyc/Sidewalk_IMG_3114.png | Sidewalk I
+nyc/Sidewalk_I_IMG_3114.png | Sidewalk I
+nyc/Sidewalk_II_IMG_2629.png | Sidewalk II
 nyc/Quantum_Leap_IMG_2072.png | Quantum Leap
 nyc/Old_Dock_IMG_0234.png | Old Dock

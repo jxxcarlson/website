@@ -2,6 +2,47 @@
 body.photography {
     background-color: #0a0a0a;
     color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
+body.photography main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    padding-bottom: 2.5rem;
+}
+
+body.photography .slideshow {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+body.photography .slide.active {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    overflow: hidden;
+}
+
+body.photography .slide img {
+    max-height: calc(100vh - 10rem);
+    max-width: 100%;
+    width: auto;
+    height: auto;
+    object-fit: contain;
+}
+
+body.photography .slideshow-controls {
+    position: absolute;
+    bottom: 0.25rem;
+    left: 0;
+    right: 0;
 }
 
 body.photography header {
@@ -25,7 +66,7 @@ body.photography a:hover {
 }
 
 body.photography footer {
-    border-top-color: #333;
+    border-top: none;
     color: #888;
 }
 
@@ -42,6 +83,10 @@ body.photography h1,
 body.photography h2,
 body.photography h3 {
     color: #e8e8e8;
+}
+
+body.photography h1 {
+    text-align: center;
 }
 
 /* Slideshow */

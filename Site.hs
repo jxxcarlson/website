@@ -14,6 +14,10 @@ main = hakyll $ do
         route   idRoute
         compile copyFileCompiler
 
+    match "files/**" $ do
+        route   idRoute
+        compile copyFileCompiler
+
     match "css/*" $ do
         route   idRoute
         compile compressCssCompiler
@@ -39,6 +43,11 @@ main = hakyll $ do
                 >>= loadAndApplyTemplate "templates/photography.html" defaultContext
                 >>= relativizeUrls
 
+    match "music/**" $ do
+                route $ setExtension "html"
+                compile $ scriptaCompiler
+                    >>= loadAndApplyTemplate "templates/default.html" defaultContext
+                    >>= relativizeUrls
 
     match "archive/**.txt" $ do
           route $ setExtension "html"
