@@ -106,7 +106,7 @@ renderImage block =
     let filename = case blockContent block of
             (f:_) -> trim f
             [] -> ""
-        imgPath = "/images/" ++ filename
+        imgPath = "/media/images/" ++ filename
         isBackground = hasArg "background" block
     in if isBackground
        then renderBackgroundImage imgPath block
@@ -147,7 +147,7 @@ renderPdf block =
     let filename = case blockContent block of
             (f:_) -> trim f
             [] -> ""
-        pdfPath = "/files/" ++ filename
+        pdfPath = "/media/pdf/" ++ filename
         width = fromMaybe "100%" (getProp "width" block)
         height = fromMaybe "600px" (getProp "height" block)
     in [ "<object data=\"" ++ pdfPath ++ "\" type=\"application/pdf\" width=\"" ++ width ++ "\" height=\"" ++ height ++ "\">"
@@ -163,7 +163,7 @@ renderAudio block =
     let filename = case blockContent block of
             (f:_) -> trim f
             [] -> ""
-        audioPath = "/files/" ++ filename
+        audioPath = "/media/audio/" ++ filename
         title = fromMaybe filename (getProp "title" block)
         audioId = "audio-" ++ filter (`elem` (['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'])) filename
     in [ "<div class=\"audio-block\">"
@@ -229,7 +229,7 @@ parseSlides = map parseSlideLine . filter (not . all isSpace)
 -- | Render a single slide
 renderSlide :: String -> (Int, (String, Maybe String)) -> [String]
 renderSlide width (idx, (path, caption)) =
-    let imgPath = "/images/" ++ path
+    let imgPath = "/media/images/" ++ path
         activeClass = if idx == 0 then " active" else ""
         captionHtml = maybe "" (\c -> "<div class=\"slide-caption\">" ++ c ++ "</div>") caption
     in [ "<div class=\"slide" ++ activeClass ++ "\" data-index=\"" ++ show idx ++ "\">"

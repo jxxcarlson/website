@@ -10,11 +10,19 @@ import Scripta (processScripta)
 main :: IO ()
 main = hakyll $ do
     -- Static files
-    match "images/**" $ do
+    match "media/images/**" $ do
         route   idRoute
         compile copyFileCompiler
 
-    match "files/**" $ do
+    match "media/audio/*" $ do
+        route   idRoute
+        compile copyFileCompiler
+
+    match "media/video/*" $ do
+        route   idRoute
+        compile copyFileCompiler
+
+    match "media/pdf/*" $ do
         route   idRoute
         compile copyFileCompiler
 
