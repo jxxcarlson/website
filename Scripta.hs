@@ -95,6 +95,7 @@ renderBlock block = case blockType block of
     "slideshow" -> renderSlideshow block
     "pdf"       -> renderPdf block
     "audio"     -> renderAudio block
+    "prog"      -> renderProg block
     "hide"      -> []  -- Hidden content, renders nothing
     _ -> ["<!-- Unknown Scripta block: " ++ blockType block ++ " -->"]
 
@@ -179,6 +180,32 @@ renderAudio block =
        , "}"
        , "</script>"
        ]
+
+-- | Render a prog block (embedded HTML app)
+-- Props: title, width, height, display (external opens in new window)
+-- Content: path to HTML file in /prog/
+renderProg :: Block -> [String]
+renderProg block =
+    let filename = case blockContent block of
+            (f:_) -> trim f
+            [] -> ""
+        progPath = "/prog/" ++ filename
+        title = fromMaybe filename (getProp "title" block)
+        display = getProp "display" block
+        width = fromMaybe "600" (getProp "width" block)
+        height = fromMaybe "400" (getProp "height" block)
+    in case display of
+        Just "external" ->
+            [ "<div class=\"prog-block prog-external\">"
+            , "<a href=\"" ++ progPath ++ "\" target=\"_blank\" class=\"prog-link\">" ++ title ++ "</a>"
+            , "</div>"
+            ]
+        _ ->
+            [ "<div class=\"prog-block\">"
+            , "<div class=\"prog-title\">" ++ title ++ "</div>"
+            , "<iframe src=\"" ++ progPath ++ "\" width=\"" ++ width ++ "\" height=\"" ++ height ++ "\" frameborder=\"0\"></iframe>"
+            , "</div>"
+            ]
 
 -- | Render a slideshow block
 -- Content lines: path/to/image.png | Caption text

@@ -155,3 +155,39 @@ figcaption {
 .audio-title:hover {
     color: #004499;
 }
+
+/* Prog blocks (embedded HTML apps) */
+.prog-block {
+    margin: 1.5rem 0;
+    text-align: center;
+}
+
+.prog-title {
+    font-size: 1.1rem;
+    font-weight: normal;
+    margin-bottom: 0.5rem;
+    color: #333;
+}
+
+.prog-block iframe {
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    max-width: 100%;
+}
+
+.prog-link {
+    display: inline-block;
+    font-size: 1.1rem;
+    color: #0066cc;
+    text-decoration: none;
+    padding: 0.4rem 0;
+}
+
+.prog-link::before {
+    content: "↗ ";
+}
+
+.prog-link:hover {
+    color: #004499;
+    text-decoration: underline;
+}
