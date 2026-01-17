@@ -6,7 +6,6 @@ title: jxxcarlson.github.io
 - [Photography](/photography/) - Photo gallery
 - [Music](/music) - Some compositions
 - [Code](/projects.html) - Software projects and experiments
-- [Notes](/notes.html) - Working notes from The Archive
 - [About](/about.html) 
 
 | image background caption:Submerged

@@ -10,6 +10,9 @@ dependencies:
   - hakyll >= 4.15 && < 5
   - pandoc
   - text
+  - containers
+  - directory
+  - filepath
 
 executables:
   site:
