@@ -18,8 +18,9 @@ main :: IO ()
 main = do
     -- Pre-scan archive files for #post and #diary tags
     postMap <- scanArchiveForPosts "archive"
-    diaryFiles <- scanArchiveForTag "archive" "#diary"
+    diaryMap <- scanArchiveForDiary "archive"
     let postFiles = M.keys postMap
+        diaryFiles = M.keys diaryMap
 
     hakyll $ do
         -- Static files
@@ -82,7 +83,15 @@ main = do
                 >>= loadAndApplyTemplate "templates/default.html" archivePostCtx
                 >>= relativizeUrls
 
-        -- Archive notes that are NOT posts
+        -- Diary entries (archive notes with #diary tag) - MUST come before archive match
+        match (fromList diaryFiles) $ do
+            route $ customRoute (archiveToDiaryRoute diaryMap)
+            compile $ txtDiaryCompiler
+                >>= loadAndApplyTemplate "templates/post.html" diaryEntryCtx
+                >>= loadAndApplyTemplate "templates/default.html" diaryEntryCtx
+                >>= relativizeUrls
+
+        -- Archive notes that are NOT posts or diary entries
         match "archive/**.txt" $ do
             route $ setExtension "html"
             compile $ txtCompiler
@@ -108,14 +117,6 @@ main = do
                     >>= loadAndApplyTemplate "templates/notes.html" notesCtx
                     >>= loadAndApplyTemplate "templates/default.html" notesCtx
                     >>= relativizeUrls
-
-        -- Diary entries (archive notes with #diary tag)
-        match (fromList diaryFiles) $ do
-            route $ customRoute archiveToDiaryRoute
-            compile $ txtDiaryCompiler
-                >>= loadAndApplyTemplate "templates/post.html" diaryEntryCtx
-                >>= loadAndApplyTemplate "templates/default.html" diaryEntryCtx
-                >>= relativizeUrls
 
         -- Diary index page (obscured URL)
         create ["brz891/diary/index.html"] $ do
@@ -324,15 +325,11 @@ diaryEntryCtx =
     extractTitleFromContent item = do
         let path = toFilePath (itemIdentifier item)
         content <- unsafeCompiler $ readFile path
-        let firstLine = head $ lines content ++ [""]
-            -- Strip "# " prefix if present
-            stripped = if "# " `isPrefixOf` firstLine
-                       then drop 2 firstLine
-                       else firstLine
-            -- Strip Zettelkasten ID prefix (12+ digits followed by space)
-            title = if length stripped > 12 && all (`elem` ['0'..'9']) (take 12 stripped)
-                    then dropWhile (== ' ') $ dropWhile (/= ' ') stripped
-                    else stripped
+        let contentLines = lines content
+            -- Title is on line 1
+            title = if not (null contentLines)
+                    then head contentLines
+                    else "Untitled"
         return $ if null title then "Untitled" else title
 
     takeBaseName' p = reverse $ drop 1 $ dropWhile (/= '.') $ reverse $
@@ -475,16 +472,19 @@ toSlug = map toLower . map dashify . filter isValidChar
     dashify c = c
     toLower c = if c >= 'A' && c <= 'Z' then toEnum (fromEnum c + 32) else c
 
--- | Scan archive directory for files containing a specific tag
-scanArchiveForTag :: FilePath -> String -> IO [Identifier]
-scanArchiveForTag dir tag = do
+-- | Scan archive directory for files containing #diary tag
+-- Returns a map of Identifier -> title (from first line of file)
+scanArchiveForDiary :: FilePath -> IO (M.Map Identifier String)
+scanArchiveForDiary dir = do
     files <- findTxtFiles dir
     results <- forM files $ \path -> do
         content <- readFile path
-        return $ if hasTag tag content
-                 then Just (fromFilePath path)
+        let contentLines = lines content
+            title = if not (null contentLines) then head contentLines else ""
+        return $ if hasTag "#diary" content
+                 then Just (fromFilePath path, title)
                  else Nothing
-    return $ catMaybes results
+    return $ M.fromList $ catMaybes results
 
 -- | Check if content has a specific tag
 hasTag :: String -> String -> Bool
@@ -492,21 +492,19 @@ hasTag tag content = any isTagLine (lines content)
   where
     isTagLine line = tag `isPrefixOf` (dropWhile isSpace line)
 
--- | Convert archive path to diary path
--- archive/202601162353 My Entry.txt -> brz891/diary/my-entry.html
-archiveToDiaryRoute :: Identifier -> FilePath
-archiveToDiaryRoute ident =
-    let path = toFilePath ident
-        filename = takeBaseName path
-        title = dropWhile (== ' ') $ dropWhile (/= ' ') filename
-        slug = toSlug (if null title then filename else title)
+-- | Convert archive path to diary path using title-based slug
+-- archive/202601162353.txt -> brz891/diary/us-situation-fubar.html
+archiveToDiaryRoute :: M.Map Identifier String -> Identifier -> FilePath
+archiveToDiaryRoute diaryMap ident =
+    let title = M.findWithDefault "untitled" ident diaryMap
+        slug = toSlug title
     in "brz891" </> "diary" </> slug ++ ".html"
 
--- | Compiler for diary entries - strips #diary tags before rendering
+-- | Compiler for diary entries - strips first line (title) and #diary tags
 txtDiaryCompiler :: Compiler (Item String)
 txtDiaryCompiler = do
     body <- getResourceBody
-    let content = stripDiaryTags (itemBody body)
+    let content = stripDiaryContent (itemBody body)
         readerOpts = defaultHakyllReaderOptions
             { readerExtensions = enableExtension Ext_tex_math_dollars $
                                  enableExtension Ext_tex_math_double_backslash $
@@ -521,9 +519,15 @@ txtDiaryCompiler = do
         Left err -> fail $ show err
         Right html -> makeItem (T.unpack html)
 
--- | Strip #diary tags from content
-stripDiaryTags :: String -> String
-stripDiaryTags = unlines . filter (not . isDiaryTag) . lines
+-- | Strip first line (title) and #diary tags from content
+stripDiaryContent :: String -> String
+stripDiaryContent s =
+    let ls = lines s
+        -- Drop the first line (title)
+        withoutTitle = drop 1 ls
+        -- Filter out #diary tags
+        withoutTags = filter (not . isDiaryTag) withoutTitle
+    in unlines withoutTags
   where
     isDiaryTag line = "#diary" `isPrefixOf` (dropWhile isSpace line)
 
