@@ -28,3 +28,10 @@ The full program will be up on Youtube very soon
 
 I would like to thank my composition teacher, George Oakley for his
 patient and inspiring guidance in writing music.
+
+| vspace 30
+
+## Program
+
+| pdf
+program_20252406.pdf

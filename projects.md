@@ -33,10 +33,20 @@ are links to smaller examples of apps built with Elm.
 - [prog "Microbial Life" microbial_life/index.html], [Code](https://github.com/jxxcarlson/elm-microbialLife)
   A simulation of an imaginary three-species bacterial world.
 
+
+| image width:400 caption:Simulation of Brownian Motion
+simulations/brownian_motion.webp
+
+| vspace 0
+
+
+
 ## Physics Simulations
 - [Gambler's Ruin](https://jxxcarlson.github.io/app/gamblers_ruin.html)
 - [Heat equation](https://jxxcarlson.github.io/app/heat-model.html)
 - [Heat equation, version 2](https://jxxcarlson.github.io/app/heat-model-gl.html)
+- [prog "Brownian Motion" brownian_motion.html],  [Code](https://github.com/jxxcarlson/brownianMotion.elm)
+
 
 ## Just for fun
 - [Fake Drum Language App](https://jxxcarlson.github.io/app/drumlanguage.html)
