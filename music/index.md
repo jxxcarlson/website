@@ -10,7 +10,7 @@ https://vimeo.com/1155279422?share=copy&fl=sv&fe=ci
 | vspace 30
 
 | center
-*Listen to these pieces (score included):* [Waltz](music/waltz.html) | [Ether](music/ether.html) | [Solea](music/solea.html)
+*Listen to these pieces (score included):* [Waltz](waltz.html) | [Ether](ether.html) | [Solea](solea.html)
 
 | vspace 30
 
@@ -19,7 +19,7 @@ music/concert_poster.webp
 
 | hide
 I organized a concert of mostly new
-music at Klavierhause in New York City on December 6, 2025 — see poster below,
+music at Klavierhaus in New York City on December 6, 2025 — see poster below,
 along with scores and
 audio files for my part of the program.
 Most of the pieces were written in 2025, but some are earlier work.

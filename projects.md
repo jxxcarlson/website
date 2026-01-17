@@ -36,7 +36,7 @@ Below are links to some experiments with these languages (mostly Elm, some Haske
   This app uses [Evan Czaplicki's Elm Playground](https://package.elm-lang.org/packages/evancz/elm-playground/latest/)
 - [Schelling's Segregation Model](https://jxxcarlson.github.io/app/schelling.html),  [Code](https://github.com/jxxcarlson/schelling)
 - [Game of Life](https://jxxcarlson.github.io/app/gameoflife2.html)
-  - [prog "Microbial Life X1" microbial_life/index.html], [Code](https://github.com/jxxcarlson/elm-microbialLife)
+- [prog "Microbial Life X1" microbial_life/index.html], [Code](https://github.com/jxxcarlson/elm-microbialLife)
 
 ## Physics Simulations
 - [Gambler's Ruin](https://jxxcarlson.github.io/app/gamblers_ruin.html)
