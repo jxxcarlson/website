@@ -1,40 +1,44 @@
 {-# LANGUAGE OverloadedStrings #-}
 
-module Scripta (processScripta) where
+module Scripta (processScripta, LinkMap) where
 
 import Data.List (isPrefixOf)
 import Data.Maybe (fromMaybe)
 import Data.Char (isSpace)
+import qualified Data.Map as M
+
+-- | Map from Zettelkasten ID to (URL, Title)
+type LinkMap = M.Map String (String, String)
 
 -- | Process Scripta blocks and inline elements in markdown content
-processScripta :: String -> String
-processScripta = unlines . processLines . lines
+processScripta :: LinkMap -> String -> String
+processScripta linkMap = unlines . processLines linkMap . lines
 
-processLines :: [String] -> [String]
-processLines [] = []
-processLines (line:rest)
+processLines :: LinkMap -> [String] -> [String]
+processLines _ [] = []
+processLines linkMap (line:rest)
     | "| " `isPrefixOf` line =
         let (blockLines, remaining) = spanBlock rest
             block = parseBlock line blockLines
-        in renderBlock block ++ processLines remaining
-    | otherwise = processInline line : processLines rest
+        in renderBlock block ++ processLines linkMap remaining
+    | otherwise = processInline linkMap line : processLines linkMap rest
 
 -- | Process inline Scripta elements in a line
--- Syntax: [prog TITLE FILENAME]
-processInline :: String -> String
-processInline [] = []
-processInline s@(c:cs)
+-- Syntax: [prog TITLE FILENAME], [ilink ID], [ilink ID "text"]
+processInline :: LinkMap -> String -> String
+processInline _ [] = []
+processInline linkMap s@(c:cs)
     | c == '[' =
-        case parseInlineElement s of
-            Just (html, rest) -> html ++ processInline rest
-            Nothing -> c : processInline cs
-    | otherwise = c : processInline cs
+        case parseInlineElement linkMap s of
+            Just (html, rest) -> html ++ processInline linkMap rest
+            Nothing -> c : processInline linkMap cs
+    | otherwise = c : processInline linkMap cs
 
 -- | Try to parse an inline element starting with '['
 -- Returns Just (rendered HTML, remaining string) or Nothing
 -- Supports quoted values: [prog "Title With Spaces" filename.html]
-parseInlineElement :: String -> Maybe (String, String)
-parseInlineElement s = do
+parseInlineElement :: LinkMap -> String -> Maybe (String, String)
+parseInlineElement linkMap s = do
     -- Find the closing bracket
     let content = drop 1 s  -- drop '['
     idx <- findClosingBracket content 0
@@ -48,6 +52,10 @@ parseInlineElement s = do
             Just (renderInlineHrule Nothing, rest)
         ["hrule", width] ->
             Just (renderInlineHrule (Just width), rest)
+        ["ilink", zettelId] ->
+            Just (renderInlineLink linkMap zettelId Nothing, rest)
+        ["ilink", zettelId, customText] ->
+            Just (renderInlineLink linkMap zettelId (Just customText), rest)
         _ -> Nothing
 
 -- | Parse words, treating quoted strings as single words
@@ -87,6 +95,21 @@ renderInlineHrule :: Maybe String -> String
 renderInlineHrule Nothing = "<hr style=\"margin-bottom: 1em;\">"
 renderInlineHrule (Just width) =
     "<hr style=\"width: " ++ width ++ "px; margin-left: auto; margin-right: auto; margin-bottom: 1em;\">"
+
+-- | Render inline link to another note/post
+-- [ilink 202601170832] renders link with title as text
+-- [ilink 202601170832 "custom text"] renders link with custom text
+renderInlineLink :: LinkMap -> String -> Maybe String -> String
+renderInlineLink linkMap zettelId customText =
+    case M.lookup zettelId linkMap of
+        Just (url, title) ->
+            let linkText = fromMaybe title customText
+            in "<a href=\"" ++ url ++ "\" class=\"internal-link\">" ++ linkText ++ "</a>"
+        Nothing ->
+            -- Fallback: link to archive path if not found in map
+            let url = "/archive/" ++ zettelId ++ ".html"
+                linkText = fromMaybe zettelId customText
+            in "<a href=\"" ++ url ++ "\" class=\"internal-link broken\">" ++ linkText ++ "</a>"
 
 -- | Collect lines belonging to a block (non-empty lines after the header)
 spanBlock :: [String] -> ([String], [String])

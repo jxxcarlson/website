@@ -6,7 +6,7 @@ import qualified Data.Map as M
 import Hakyll
 import Text.Pandoc
 import Text.Pandoc.Options
-import Scripta (processScripta)
+import Scripta (processScripta, LinkMap)
 import System.Directory (listDirectory, doesDirectoryExist)
 import System.FilePath ((</>), takeExtension, takeBaseName)
 import Control.Monad (filterM, forM)
@@ -21,6 +21,9 @@ main = do
     diaryMap <- scanArchiveForDiary "archive"
     let postFiles = M.keys postMap
         diaryFiles = M.keys diaryMap
+
+    -- Build the link map for internal links
+    linkMap <- buildLinkMap "archive" postMap diaryMap
 
     hakyll $ do
         -- Static files
@@ -51,34 +54,34 @@ main = do
         -- Pages
         match "pages/*" $ do
             route   $ gsubRoute "pages/" (const "") `composeRoutes` setExtension "html"
-            compile $ scriptaCompiler
+            compile $ scriptaCompiler linkMap
                 >>= loadAndApplyTemplate "templates/default.html" defaultContext
                 >>= relativizeUrls
 
         -- Posts (from posts/ directory)
         match "posts/**" $ do
             route $ setExtension "html"
-            compile $ scriptaCompiler
+            compile $ scriptaCompiler linkMap
                 >>= loadAndApplyTemplate "templates/post.html"    postCtx
                 >>= loadAndApplyTemplate "templates/default.html" postCtx
                 >>= relativizeUrls
 
         match "photography/**" $ do
             route $ setExtension "html"
-            compile $ scriptaCompiler
+            compile $ scriptaCompiler linkMap
                 >>= loadAndApplyTemplate "templates/photography.html" defaultContext
                 >>= relativizeUrls
 
         match "music/**" $ do
             route $ setExtension "html"
-            compile $ scriptaCompiler
+            compile $ scriptaCompiler linkMap
                 >>= loadAndApplyTemplate "templates/default.html" defaultContext
                 >>= relativizeUrls
 
         -- Archive notes that are posts (contain #post tag)
         match (fromList postFiles) $ do
             route $ customRoute (archiveToPostRoute postMap)
-            compile $ txtPostCompiler
+            compile $ txtPostCompiler linkMap
                 >>= loadAndApplyTemplate "templates/post.html" archivePostCtx
                 >>= loadAndApplyTemplate "templates/default.html" archivePostCtx
                 >>= relativizeUrls
@@ -86,7 +89,7 @@ main = do
         -- Diary entries (archive notes with #diary tag) - MUST come before archive match
         match (fromList diaryFiles) $ do
             route $ customRoute (archiveToDiaryRoute diaryMap)
-            compile $ txtDiaryCompiler
+            compile $ txtDiaryCompiler linkMap
                 >>= loadAndApplyTemplate "templates/post.html" diaryEntryCtx
                 >>= loadAndApplyTemplate "templates/default.html" diaryEntryCtx
                 >>= relativizeUrls
@@ -94,7 +97,7 @@ main = do
         -- Archive notes that are NOT posts or diary entries
         match "archive/**.txt" $ do
             route $ setExtension "html"
-            compile $ txtCompiler
+            compile $ txtCompiler linkMap
                 >>= loadAndApplyTemplate "templates/note.html" noteCtx
                 >>= loadAndApplyTemplate "templates/default.html" noteCtx
                 >>= relativizeUrls
@@ -172,14 +175,14 @@ main = do
         -- Projects page
         match "projects.md" $ do
             route $ setExtension "html"
-            compile $ scriptaCompiler
+            compile $ scriptaCompiler linkMap
                 >>= loadAndApplyTemplate "templates/default.html" defaultContext
                 >>= relativizeUrls
 
         -- Index page (landing page) - supports Scripta markup
         match "index.md" $ do
             route $ setExtension "html"
-            compile $ scriptaCompiler
+            compile $ scriptaCompiler linkMap
                 >>= loadAndApplyTemplate "templates/default.html" defaultContext
                 >>= relativizeUrls
 
@@ -358,10 +361,10 @@ noteCtx =
                     else "Untitled"
         return $ if null title then "Untitled" else title
 
-txtCompiler :: Compiler (Item String)
-txtCompiler = do
+txtCompiler :: LinkMap -> Compiler (Item String)
+txtCompiler linkMap = do
     body <- getResourceBody
-    let content = processScripta $ stripFirstLine (itemBody body)
+    let content = processScripta linkMap $ stripFirstLine (itemBody body)
         readerOpts = defaultHakyllReaderOptions
             { readerExtensions = enableExtension Ext_tex_math_dollars $
                                  enableExtension Ext_tex_math_double_backslash $
@@ -381,10 +384,10 @@ stripFirstLine :: String -> String
 stripFirstLine = unlines . drop 1 . lines
 
 -- | Compiler that preprocesses Scripta markup before Pandoc
-scriptaCompiler :: Compiler (Item String)
-scriptaCompiler = do
+scriptaCompiler :: LinkMap -> Compiler (Item String)
+scriptaCompiler linkMap = do
     body <- getResourceBody
-    let processed = processScripta (itemBody body)
+    let processed = processScripta linkMap (itemBody body)
         result = runPure $ do
             doc <- readMarkdown defaultHakyllReaderOptions (T.pack processed)
             writeHtml5String defaultHakyllWriterOptions doc
@@ -393,10 +396,10 @@ scriptaCompiler = do
         Right html -> makeItem (T.unpack html)
 
 -- | Compiler for archive posts - strips first line (title) and #post tags
-txtPostCompiler :: Compiler (Item String)
-txtPostCompiler = do
+txtPostCompiler :: LinkMap -> Compiler (Item String)
+txtPostCompiler linkMap = do
     body <- getResourceBody
-    let content = processScripta $ stripPostTags $ stripFirstLine (itemBody body)
+    let content = processScripta linkMap $ stripPostTags $ stripFirstLine (itemBody body)
         readerOpts = defaultHakyllReaderOptions
             { readerExtensions = enableExtension Ext_tex_math_dollars $
                                  enableExtension Ext_tex_math_double_backslash $
@@ -511,11 +514,40 @@ archiveToDiaryRoute diaryMap ident =
         slug = toSlug title
     in "brz891" </> "diary" </> slug ++ ".html"
 
+-- | Build a map from Zettelkasten ID to (URL, Title) for internal links
+buildLinkMap :: FilePath
+             -> M.Map Identifier (Maybe String, String)  -- postMap
+             -> M.Map Identifier String                   -- diaryMap
+             -> IO LinkMap
+buildLinkMap dir postMap diaryMap = do
+    files <- findTxtFiles dir
+    results <- forM files $ \path -> do
+        content <- readFile path
+        let ident = fromFilePath path
+            filename = takeBaseName path
+            zettelId = take 12 filename  -- Get the Zettelkasten ID
+            contentLines = lines content
+            title = if not (null contentLines) then head contentLines else ""
+
+            -- Determine URL based on which map the file is in
+            url = if ident `M.member` postMap
+                  then "/" ++ archiveToPostRoute postMap ident
+                  else if ident `M.member` diaryMap
+                       then "/" ++ archiveToDiaryRoute diaryMap ident
+                       else "/archive/" ++ zettelId ++ ".html"
+
+        -- Only include files with valid Zettelkasten IDs (12 digits)
+        return $ if length filename >= 12 && all (`elem` ['0'..'9']) (take 12 filename)
+                 then Just (zettelId, (url, title))
+                 else Nothing
+
+    return $ M.fromList $ catMaybes results
+
 -- | Compiler for diary entries - strips first line (title) and #diary tags
-txtDiaryCompiler :: Compiler (Item String)
-txtDiaryCompiler = do
+txtDiaryCompiler :: LinkMap -> Compiler (Item String)
+txtDiaryCompiler linkMap = do
     body <- getResourceBody
-    let content = processScripta $ stripDiaryContent (itemBody body)
+    let content = processScripta linkMap $ stripDiaryContent (itemBody body)
         readerOpts = defaultHakyllReaderOptions
             { readerExtensions = enableExtension Ext_tex_math_dollars $
                                  enableExtension Ext_tex_math_double_backslash $
