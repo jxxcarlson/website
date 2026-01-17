@@ -3,7 +3,7 @@ title: Code
 ---
 
 After I retired from my career as a mathematician, I tried my hand
-at a programming project that still occupies much of my time, the app
+at a [ilink 202601170832 "programming project"] that still occupies much of my time, the app
 [scripta.io](https://scripta.io), a web-based editor and publishing
 platform for mathematics and math-heavy disciplines like physics. 
 After several unsatisfying attempts 
