@@ -342,18 +342,18 @@ noteCtx =
   where
     extractTitle item = do
         let path = toFilePath (itemIdentifier item)
-            filename = takeBaseName path
-            -- Strip Zettelkasten ID prefix (e.g., "202102180950 ")
-            title = dropWhile (== ' ') $ dropWhile (/= ' ') filename
-        return $ if null title then filename else title
-
-    takeBaseName p = reverse $ drop 1 $ dropWhile (/= '.') $ reverse $
-                     reverse $ takeWhile (/= '/') $ reverse p
+        content <- unsafeCompiler $ readFile path
+        let contentLines = lines content
+            title = if not (null contentLines)
+                    then head contentLines
+                    else "Untitled"
+        return $ if null title then "Untitled" else title
 
 txtCompiler :: Compiler (Item String)
 txtCompiler = do
     body <- getResourceBody
-    let readerOpts = defaultHakyllReaderOptions
+    let content = stripFirstLine (itemBody body)
+        readerOpts = defaultHakyllReaderOptions
             { readerExtensions = enableExtension Ext_tex_math_dollars $
                                  enableExtension Ext_tex_math_double_backslash $
                                  readerExtensions defaultHakyllReaderOptions
@@ -361,11 +361,15 @@ txtCompiler = do
         writerOpts = defaultHakyllWriterOptions
             { writerHTMLMathMethod = MathJax "" }
         result = runPure $ do
-            doc <- readMarkdown readerOpts (T.pack $ itemBody body)
+            doc <- readMarkdown readerOpts (T.pack content)
             writeHtml5String writerOpts doc
     case result of
         Left err -> fail $ show err
         Right html -> makeItem (T.unpack html)
+
+-- | Strip the first line (title) from content
+stripFirstLine :: String -> String
+stripFirstLine = unlines . drop 1 . lines
 
 -- | Compiler that preprocesses Scripta markup before Pandoc
 scriptaCompiler :: Compiler (Item String)
