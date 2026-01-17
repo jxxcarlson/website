@@ -26,7 +26,7 @@ main = hakyll $ do
         route   idRoute
         compile copyFileCompiler
 
-    match "prog/*" $ do
+    match "prog/**" $ do
         route   idRoute
         compile copyFileCompiler
 

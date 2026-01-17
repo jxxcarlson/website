@@ -11,8 +11,13 @@ of the pieces were written in 2025, but some are earlier work.
 I would like to thank my composition teacher, George Oakley for his 
 patient and inspiring guidance.
 
+| video width:600 caption:Rehearsal (Ether, Solea)
+https://vimeo.com/1155279422?share=copy&fl=sv&fe=ci
+
 J. Carlson: [Ether](ether.html) | [Solea](solea.html)
 
+
+
 | image caption:December 6 Concert
-music/concert_poster.jpg
+music/concert_poster.webp
 

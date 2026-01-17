@@ -6,7 +6,7 @@ import Data.List (isPrefixOf)
 import Data.Maybe (fromMaybe)
 import Data.Char (isSpace)
 
--- | Process Scripta blocks in markdown content
+-- | Process Scripta blocks and inline elements in markdown content
 processScripta :: String -> String
 processScripta = unlines . processLines . lines
 
@@ -17,7 +17,63 @@ processLines (line:rest)
         let (blockLines, remaining) = spanBlock rest
             block = parseBlock line blockLines
         in renderBlock block ++ processLines remaining
-    | otherwise = line : processLines rest
+    | otherwise = processInline line : processLines rest
+
+-- | Process inline Scripta elements in a line
+-- Syntax: [prog TITLE FILENAME]
+processInline :: String -> String
+processInline [] = []
+processInline s@(c:cs)
+    | c == '[' =
+        case parseInlineElement s of
+            Just (html, rest) -> html ++ processInline rest
+            Nothing -> c : processInline cs
+    | otherwise = c : processInline cs
+
+-- | Try to parse an inline element starting with '['
+-- Returns Just (rendered HTML, remaining string) or Nothing
+-- Supports quoted values: [prog "Title With Spaces" filename.html]
+parseInlineElement :: String -> Maybe (String, String)
+parseInlineElement s = do
+    -- Find the closing bracket
+    let content = drop 1 s  -- drop '['
+    idx <- findClosingBracket content 0
+    let inner = take idx content
+        rest = drop (idx + 1) content
+        parts = parseQuotedWords inner
+    case parts of
+        ("prog":title:filename:_) ->
+            Just (renderInlineProg title filename, rest)
+        _ -> Nothing
+
+-- | Parse words, treating quoted strings as single words
+parseQuotedWords :: String -> [String]
+parseQuotedWords [] = []
+parseQuotedWords s =
+    let s' = dropWhile isSpace s
+    in case s' of
+        [] -> []
+        ('"':rest) ->
+            let (quoted, after) = break (== '"') rest
+                remaining = drop 1 after  -- drop closing quote
+            in quoted : parseQuotedWords remaining
+        _ ->
+            let (word, after) = break isSpace s'
+            in word : parseQuotedWords after
+
+-- | Find closing bracket, handling nesting
+findClosingBracket :: String -> Int -> Maybe Int
+findClosingBracket [] _ = Nothing
+findClosingBracket (c:cs) idx
+    | c == ']' = Just idx
+    | c == '[' = Nothing  -- Don't handle nested brackets
+    | otherwise = findClosingBracket cs (idx + 1)
+
+-- | Render inline prog element as external link
+renderInlineProg :: String -> String -> String
+renderInlineProg title filename =
+    let progPath = "/prog/" ++ filename
+    in "<a href=\"" ++ progPath ++ "\" target=\"_blank\" class=\"prog-link\">" ++ title ++ "</a>"
 
 -- | Collect lines belonging to a block (non-empty lines after the header)
 spanBlock :: [String] -> ([String], [String])
@@ -96,6 +152,7 @@ renderBlock block = case blockType block of
     "pdf"       -> renderPdf block
     "audio"     -> renderAudio block
     "prog"      -> renderProg block
+    "video"     -> renderVideo block
     "hide"      -> []  -- Hidden content, renders nothing
     _ -> ["<!-- Unknown Scripta block: " ++ blockType block ++ " -->"]
 
@@ -206,6 +263,49 @@ renderProg block =
             , "<iframe src=\"" ++ progPath ++ "\" width=\"" ++ width ++ "\" height=\"" ++ height ++ "\" frameborder=\"0\"></iframe>"
             , "</div>"
             ]
+
+-- | Render a video block (Vimeo or YouTube embed)
+-- Args: first arg is caption/title
+-- Props: width, height
+-- Content: video URL
+renderVideo :: Block -> [String]
+renderVideo block =
+    let url = case blockContent block of
+            (u:_) -> trim u
+            [] -> ""
+        caption = case blockArgs block of
+            (c:rest) -> unwords (c:rest)
+            [] -> ""
+        width = fromMaybe "640" (getProp "width" block)
+        height = fromMaybe "360" (getProp "height" block)
+        embedUrl = getEmbedUrl url
+        captionHtml = if null caption then "" else "<div class=\"video-caption\">" ++ caption ++ "</div>"
+    in [ "<div class=\"video-block\">"
+       , "<iframe src=\"" ++ embedUrl ++ "\" width=\"" ++ width ++ "\" height=\"" ++ height ++ "\" frameborder=\"0\" allow=\"autoplay; fullscreen; picture-in-picture\" allowfullscreen></iframe>"
+       , captionHtml
+       , "</div>"
+       ]
+
+-- | Convert video URL to embed URL
+getEmbedUrl :: String -> String
+getEmbedUrl url
+    | "vimeo.com/" `isInfixOf` url =
+        let videoId = takeWhile (/= '?') $ reverse $ takeWhile (/= '/') $ reverse url
+        in "https://player.vimeo.com/video/" ++ videoId ++ "?title=0&byline=0&portrait=0"
+    | "youtube.com/watch" `isInfixOf` url =
+        let videoId = drop 2 $ dropWhile (/= '=') url
+        in "https://www.youtube.com/embed/" ++ takeWhile (/= '&') videoId
+    | "youtu.be/" `isInfixOf` url =
+        let videoId = reverse $ takeWhile (/= '/') $ reverse $ takeWhile (/= '?') url
+        in "https://www.youtube.com/embed/" ++ videoId
+    | otherwise = url  -- Use as-is if not recognized
+
+-- | Check if a string is contained in another
+isInfixOf :: String -> String -> Bool
+isInfixOf needle haystack = any (isPrefixOf needle) (tails haystack)
+  where
+    tails [] = [[]]
+    tails s@(_:xs) = s : tails xs
 
 -- | Render a slideshow block
 -- Content lines: path/to/image.png | Caption text

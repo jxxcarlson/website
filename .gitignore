@@ -47,3 +47,5 @@ _cache/
 archive
 src/
 stack.yaml.lock
+media/images-original/
+media/video/

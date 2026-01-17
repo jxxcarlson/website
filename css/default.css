@@ -184,10 +184,27 @@ figcaption {
 }
 
 .prog-link::before {
-    content: "↗ ";
+    content: "Run ";
 }
 
 .prog-link:hover {
     color: #004499;
     text-decoration: underline;
+}
+
+/* Video blocks */
+.video-block {
+    margin: 1.5rem 0;
+    text-align: center;
+}
+
+.video-block iframe {
+    max-width: 100%;
+    border-radius: 4px;
+}
+
+.video-caption {
+    font-size: 0.9rem;
+    color: #666;
+    margin-top: 0.5rem;
 }
