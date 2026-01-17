@@ -16,8 +16,9 @@ import Data.Maybe (catMaybes, mapMaybe)
 
 main :: IO ()
 main = do
-    -- Pre-scan archive files for #post tags
+    -- Pre-scan archive files for #post and #diary tags
     postMap <- scanArchiveForPosts "archive"
+    diaryFiles <- scanArchiveForTag "archive" "#diary"
     let postFiles = M.keys postMap
 
     hakyll $ do
@@ -106,6 +107,30 @@ main = do
                 makeItem ""
                     >>= loadAndApplyTemplate "templates/notes.html" notesCtx
                     >>= loadAndApplyTemplate "templates/default.html" notesCtx
+                    >>= relativizeUrls
+
+        -- Diary entries (archive notes with #diary tag)
+        match (fromList diaryFiles) $ do
+            route $ customRoute archiveToDiaryRoute
+            compile $ txtDiaryCompiler
+                >>= loadAndApplyTemplate "templates/post.html" diaryEntryCtx
+                >>= loadAndApplyTemplate "templates/default.html" diaryEntryCtx
+                >>= relativizeUrls
+
+        -- Diary index page (obscured URL)
+        create ["brz891/diary/index.html"] $ do
+            route idRoute
+            compile $ do
+                entries <- loadAll (fromList diaryFiles)
+                sortedEntries <- recentFirst' entries
+                let diaryIndexCtx =
+                        listField "posts" diaryEntryCtx (return sortedEntries) `mappend`
+                        constField "title" "Diary"                             `mappend`
+                        defaultContext
+
+                makeItem ""
+                    >>= loadAndApplyTemplate "templates/blog.html" diaryIndexCtx
+                    >>= loadAndApplyTemplate "templates/default.html" diaryIndexCtx
                     >>= relativizeUrls
 
         -- Archive page
@@ -271,6 +296,48 @@ archivePostCtx =
     takeBaseName' p = reverse $ drop 1 $ dropWhile (/= '.') $ reverse $
                       reverse $ takeWhile (/= '/') $ reverse p
 
+-- | Context for diary entries
+-- Extracts title from first line of content (e.g., "# 202601162353 My Title" -> "My Title")
+-- Extracts date from Zettelkasten ID in filename
+diaryEntryCtx :: Context String
+diaryEntryCtx =
+    field "date" extractDate `mappend`
+    field "title" extractTitleFromContent `mappend`
+    defaultContext
+  where
+    extractDate item = do
+        let path = toFilePath (itemIdentifier item)
+            filename = takeBaseName' path
+            zettelId = take 8 filename
+            year = take 4 zettelId
+            month = take 2 (drop 4 zettelId)
+            day = take 2 (drop 6 zettelId)
+            monthName = case month of
+                "01" -> "January"; "02" -> "February"; "03" -> "March"
+                "04" -> "April"; "05" -> "May"; "06" -> "June"
+                "07" -> "July"; "08" -> "August"; "09" -> "September"
+                "10" -> "October"; "11" -> "November"; "12" -> "December"
+                _ -> month
+            dayNum = dropWhile (== '0') day
+        return $ monthName ++ " " ++ (if null dayNum then "0" else dayNum) ++ ", " ++ year
+
+    extractTitleFromContent item = do
+        let path = toFilePath (itemIdentifier item)
+        content <- unsafeCompiler $ readFile path
+        let firstLine = head $ lines content ++ [""]
+            -- Strip "# " prefix if present
+            stripped = if "# " `isPrefixOf` firstLine
+                       then drop 2 firstLine
+                       else firstLine
+            -- Strip Zettelkasten ID prefix (12+ digits followed by space)
+            title = if length stripped > 12 && all (`elem` ['0'..'9']) (take 12 stripped)
+                    then dropWhile (== ' ') $ dropWhile (/= ' ') stripped
+                    else stripped
+        return $ if null title then "Untitled" else title
+
+    takeBaseName' p = reverse $ drop 1 $ dropWhile (/= '.') $ reverse $
+                      reverse $ takeWhile (/= '/') $ reverse p
+
 noteCtx :: Context String
 noteCtx =
     field "title" extractTitle `mappend`
@@ -407,4 +474,56 @@ toSlug = map toLower . map dashify . filter isValidChar
     dashify ' ' = '-'
     dashify c = c
     toLower c = if c >= 'A' && c <= 'Z' then toEnum (fromEnum c + 32) else c
+
+-- | Scan archive directory for files containing a specific tag
+scanArchiveForTag :: FilePath -> String -> IO [Identifier]
+scanArchiveForTag dir tag = do
+    files <- findTxtFiles dir
+    results <- forM files $ \path -> do
+        content <- readFile path
+        return $ if hasTag tag content
+                 then Just (fromFilePath path)
+                 else Nothing
+    return $ catMaybes results
+
+-- | Check if content has a specific tag
+hasTag :: String -> String -> Bool
+hasTag tag content = any isTagLine (lines content)
+  where
+    isTagLine line = tag `isPrefixOf` (dropWhile isSpace line)
+
+-- | Convert archive path to diary path
+-- archive/202601162353 My Entry.txt -> brz891/diary/my-entry.html
+archiveToDiaryRoute :: Identifier -> FilePath
+archiveToDiaryRoute ident =
+    let path = toFilePath ident
+        filename = takeBaseName path
+        title = dropWhile (== ' ') $ dropWhile (/= ' ') filename
+        slug = toSlug (if null title then filename else title)
+    in "brz891" </> "diary" </> slug ++ ".html"
+
+-- | Compiler for diary entries - strips #diary tags before rendering
+txtDiaryCompiler :: Compiler (Item String)
+txtDiaryCompiler = do
+    body <- getResourceBody
+    let content = stripDiaryTags (itemBody body)
+        readerOpts = defaultHakyllReaderOptions
+            { readerExtensions = enableExtension Ext_tex_math_dollars $
+                                 enableExtension Ext_tex_math_double_backslash $
+                                 readerExtensions defaultHakyllReaderOptions
+            }
+        writerOpts = defaultHakyllWriterOptions
+            { writerHTMLMathMethod = MathJax "" }
+        result = runPure $ do
+            doc <- readMarkdown readerOpts (T.pack content)
+            writeHtml5String writerOpts doc
+    case result of
+        Left err -> fail $ show err
+        Right html -> makeItem (T.unpack html)
+
+-- | Strip #diary tags from content
+stripDiaryTags :: String -> String
+stripDiaryTags = unlines . filter (not . isDiaryTag) . lines
+  where
+    isDiaryTag line = "#diary" `isPrefixOf` (dropWhile isSpace line)
 
