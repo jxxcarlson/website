@@ -16,14 +16,16 @@ import Data.Maybe (catMaybes, mapMaybe)
 
 main :: IO ()
 main = do
-    -- Pre-scan archive files for #post and #diary tags
+    -- Pre-scan archive files for #post, #diary, and #memoirs tags
     postMap <- scanArchiveForPosts "archive"
     diaryMap <- scanArchiveForDiary "archive"
+    memoirsMap <- scanArchiveForMemoirs "archive"
     let postFiles = M.keys postMap
         diaryFiles = M.keys diaryMap
+        memoirsFiles = M.keys memoirsMap
 
     -- Build the link map for internal links
-    linkMap <- buildLinkMap "archive" postMap diaryMap
+    linkMap <- buildLinkMap "archive" postMap diaryMap memoirsMap
 
     hakyll $ do
         -- Static files
@@ -94,7 +96,15 @@ main = do
                 >>= loadAndApplyTemplate "templates/default.html" diaryEntryCtx
                 >>= relativizeUrls
 
-        -- Archive notes that are NOT posts or diary entries
+        -- Memoirs entries (archive notes with #memoirs tag) - MUST come before archive match
+        match (fromList memoirsFiles) $ do
+            route $ customRoute (archiveToMemoirsRoute memoirsMap)
+            compile $ txtMemoirsCompiler linkMap
+                >>= loadAndApplyTemplate "templates/post.html" memoirsEntryCtx
+                >>= loadAndApplyTemplate "templates/default.html" memoirsEntryCtx
+                >>= relativizeUrls
+
+        -- Archive notes that are NOT posts, diary entries, or memoirs
         match "archive/**.txt" $ do
             route $ setExtension "html"
             compile $ txtCompiler linkMap
@@ -106,13 +116,14 @@ main = do
             route idRoute
             compile copyFileCompiler
 
-        -- Notes index page (obscured URL) - excludes diary entries
-        create ["brz891/notes/index.html"] $ do
+        -- Notes index page - excludes diary and memoirs entries
+        create ["notes/index.html"] $ do
             route idRoute
             compile $ do
                 allNotes <- loadAll "archive/**.txt"
-                -- Filter out diary entries
-                let notes = filter (\n -> itemIdentifier n `notElem` diaryFiles) allNotes
+                -- Filter out diary and memoirs entries
+                let notes = filter (\n -> itemIdentifier n `notElem` diaryFiles &&
+                                          itemIdentifier n `notElem` memoirsFiles) allNotes
                     notesCtx =
                         listField "notes" noteCtx (return notes) `mappend`
                         constField "title" "Notes"               `mappend`
@@ -123,8 +134,8 @@ main = do
                     >>= loadAndApplyTemplate "templates/default.html" notesCtx
                     >>= relativizeUrls
 
-        -- Diary index page (obscured URL)
-        create ["brz891/diary/index.html"] $ do
+        -- Diary index page
+        create ["diary/index.html"] $ do
             route idRoute
             compile $ do
                 entries <- loadAll (fromList diaryFiles)
@@ -137,6 +148,22 @@ main = do
                 makeItem ""
                     >>= loadAndApplyTemplate "templates/blog.html" diaryIndexCtx
                     >>= loadAndApplyTemplate "templates/default.html" diaryIndexCtx
+                    >>= relativizeUrls
+
+        -- Memoirs index page
+        create ["memoirs/index.html"] $ do
+            route idRoute
+            compile $ do
+                entries <- loadAll (fromList memoirsFiles)
+                sortedEntries <- recentFirst' entries
+                let memoirsIndexCtx =
+                        listField "posts" memoirsEntryCtx (return sortedEntries) `mappend`
+                        constField "title" "Memoirs"                             `mappend`
+                        defaultContext
+
+                makeItem ""
+                    >>= loadAndApplyTemplate "templates/blog.html" memoirsIndexCtx
+                    >>= loadAndApplyTemplate "templates/default.html" memoirsIndexCtx
                     >>= relativizeUrls
 
         -- Archive page
@@ -347,6 +374,43 @@ diaryEntryCtx =
     takeBaseName' p = reverse $ drop 1 $ dropWhile (/= '.') $ reverse $
                       reverse $ takeWhile (/= '/') $ reverse p
 
+-- | Context for memoirs entries
+-- Extracts title from first line of content
+-- Extracts date from Zettelkasten ID in filename
+memoirsEntryCtx :: Context String
+memoirsEntryCtx =
+    field "date" extractDate `mappend`
+    field "title" extractTitleFromContent `mappend`
+    defaultContext
+  where
+    extractDate item = do
+        let path = toFilePath (itemIdentifier item)
+            filename = takeBaseName' path
+            zettelId = take 8 filename
+            year = take 4 zettelId
+            month = take 2 (drop 4 zettelId)
+            day = take 2 (drop 6 zettelId)
+            monthName = case month of
+                "01" -> "January"; "02" -> "February"; "03" -> "March"
+                "04" -> "April"; "05" -> "May"; "06" -> "June"
+                "07" -> "July"; "08" -> "August"; "09" -> "September"
+                "10" -> "October"; "11" -> "November"; "12" -> "December"
+                _ -> month
+            dayNum = dropWhile (== '0') day
+        return $ monthName ++ " " ++ (if null dayNum then "0" else dayNum) ++ ", " ++ year
+
+    extractTitleFromContent item = do
+        let path = toFilePath (itemIdentifier item)
+        content <- unsafeCompiler $ readFile path
+        let contentLines = lines content
+            title = if not (null contentLines)
+                    then head contentLines
+                    else "Untitled"
+        return $ if null title then "Untitled" else title
+
+    takeBaseName' p = reverse $ drop 1 $ dropWhile (/= '.') $ reverse $
+                      reverse $ takeWhile (/= '/') $ reverse p
+
 noteCtx :: Context String
 noteCtx =
     field "title" extractTitle `mappend`
@@ -500,6 +564,20 @@ scanArchiveForDiary dir = do
                  else Nothing
     return $ M.fromList $ catMaybes results
 
+-- | Scan archive directory for files containing #memoirs tag
+-- Returns a map of Identifier -> title (from first line of file)
+scanArchiveForMemoirs :: FilePath -> IO (M.Map Identifier String)
+scanArchiveForMemoirs dir = do
+    files <- findTxtFiles dir
+    results <- forM files $ \path -> do
+        content <- readFile path
+        let contentLines = lines content
+            title = if not (null contentLines) then head contentLines else ""
+        return $ if hasTag "#memoirs" content
+                 then Just (fromFilePath path, title)
+                 else Nothing
+    return $ M.fromList $ catMaybes results
+
 -- | Check if content has a specific tag
 hasTag :: String -> String -> Bool
 hasTag tag content = any isTagLine (lines content)
@@ -507,19 +585,28 @@ hasTag tag content = any isTagLine (lines content)
     isTagLine line = tag `isPrefixOf` (dropWhile isSpace line)
 
 -- | Convert archive path to diary path using title-based slug
--- archive/202601162353.txt -> brz891/diary/us-situation-fubar.html
+-- archive/202601162353.txt -> diary/us-situation-fubar.html
 archiveToDiaryRoute :: M.Map Identifier String -> Identifier -> FilePath
 archiveToDiaryRoute diaryMap ident =
     let title = M.findWithDefault "untitled" ident diaryMap
         slug = toSlug title
-    in "brz891" </> "diary" </> slug ++ ".html"
+    in "diary" </> slug ++ ".html"
+
+-- | Convert archive path to memoirs path using title-based slug
+-- archive/202601162353.txt -> memoirs/my-memoir-title.html
+archiveToMemoirsRoute :: M.Map Identifier String -> Identifier -> FilePath
+archiveToMemoirsRoute memoirsMap ident =
+    let title = M.findWithDefault "untitled" ident memoirsMap
+        slug = toSlug title
+    in "memoirs" </> slug ++ ".html"
 
 -- | Build a map from Zettelkasten ID to (URL, Title) for internal links
 buildLinkMap :: FilePath
              -> M.Map Identifier (Maybe String, String)  -- postMap
              -> M.Map Identifier String                   -- diaryMap
+             -> M.Map Identifier String                   -- memoirsMap
              -> IO LinkMap
-buildLinkMap dir postMap diaryMap = do
+buildLinkMap dir postMap diaryMap memoirsMap = do
     files <- findTxtFiles dir
     results <- forM files $ \path -> do
         content <- readFile path
@@ -534,7 +621,9 @@ buildLinkMap dir postMap diaryMap = do
                   then "/" ++ archiveToPostRoute postMap ident
                   else if ident `M.member` diaryMap
                        then "/" ++ archiveToDiaryRoute diaryMap ident
-                       else "/archive/" ++ zettelId ++ ".html"
+                       else if ident `M.member` memoirsMap
+                            then "/" ++ archiveToMemoirsRoute memoirsMap ident
+                            else "/archive/" ++ zettelId ++ ".html"
 
         -- Only include files with valid Zettelkasten IDs (12 digits)
         return $ if length filename >= 12 && all (`elem` ['0'..'9']) (take 12 filename)
@@ -573,4 +662,35 @@ stripDiaryContent s =
     in unlines withoutTags
   where
     isDiaryTag line = "#diary" `isPrefixOf` (dropWhile isSpace line)
+
+-- | Compiler for memoirs entries - strips first line (title) and #memoirs tags
+txtMemoirsCompiler :: LinkMap -> Compiler (Item String)
+txtMemoirsCompiler linkMap = do
+    body <- getResourceBody
+    let content = processScripta linkMap $ stripMemoirsContent (itemBody body)
+        readerOpts = defaultHakyllReaderOptions
+            { readerExtensions = enableExtension Ext_tex_math_dollars $
+                                 enableExtension Ext_tex_math_double_backslash $
+                                 readerExtensions defaultHakyllReaderOptions
+            }
+        writerOpts = defaultHakyllWriterOptions
+            { writerHTMLMathMethod = MathJax "" }
+        result = runPure $ do
+            doc <- readMarkdown readerOpts (T.pack content)
+            writeHtml5String writerOpts doc
+    case result of
+        Left err -> fail $ show err
+        Right html -> makeItem (T.unpack html)
+
+-- | Strip first line (title) and #memoirs tags from content
+stripMemoirsContent :: String -> String
+stripMemoirsContent s =
+    let ls = lines s
+        -- Drop the first line (title)
+        withoutTitle = drop 1 ls
+        -- Filter out #memoirs tags
+        withoutTags = filter (not . isMemoirsTag) withoutTitle
+    in unlines withoutTags
+  where
+    isMemoirsTag line = "#memoirs" `isPrefixOf` (dropWhile isSpace line)
 
