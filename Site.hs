@@ -361,7 +361,7 @@ noteCtx =
 txtCompiler :: Compiler (Item String)
 txtCompiler = do
     body <- getResourceBody
-    let content = stripFirstLine (itemBody body)
+    let content = processScripta $ stripFirstLine (itemBody body)
         readerOpts = defaultHakyllReaderOptions
             { readerExtensions = enableExtension Ext_tex_math_dollars $
                                  enableExtension Ext_tex_math_double_backslash $
@@ -396,7 +396,7 @@ scriptaCompiler = do
 txtPostCompiler :: Compiler (Item String)
 txtPostCompiler = do
     body <- getResourceBody
-    let content = stripPostTags $ stripFirstLine (itemBody body)
+    let content = processScripta $ stripPostTags $ stripFirstLine (itemBody body)
         readerOpts = defaultHakyllReaderOptions
             { readerExtensions = enableExtension Ext_tex_math_dollars $
                                  enableExtension Ext_tex_math_double_backslash $
@@ -515,7 +515,7 @@ archiveToDiaryRoute diaryMap ident =
 txtDiaryCompiler :: Compiler (Item String)
 txtDiaryCompiler = do
     body <- getResourceBody
-    let content = stripDiaryContent (itemBody body)
+    let content = processScripta $ stripDiaryContent (itemBody body)
         readerOpts = defaultHakyllReaderOptions
             { readerExtensions = enableExtension Ext_tex_math_dollars $
                                  enableExtension Ext_tex_math_double_backslash $

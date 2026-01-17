@@ -44,6 +44,10 @@ parseInlineElement s = do
     case parts of
         ("prog":title:filename:_) ->
             Just (renderInlineProg title filename, rest)
+        ["hrule"] ->
+            Just (renderInlineHrule Nothing, rest)
+        ["hrule", width] ->
+            Just (renderInlineHrule (Just width), rest)
         _ -> Nothing
 
 -- | Parse words, treating quoted strings as single words
@@ -74,6 +78,15 @@ renderInlineProg :: String -> String -> String
 renderInlineProg title filename =
     let progPath = "/prog/" ++ filename
     in "<a href=\"" ++ progPath ++ "\" target=\"_blank\" class=\"prog-link\">" ++ title ++ "</a>"
+
+-- | Render inline hrule element
+-- [hrule] renders a full-width horizontal rule
+-- [hrule 100] renders a 100px wide rule, centered
+-- Adds spacing below the rule
+renderInlineHrule :: Maybe String -> String
+renderInlineHrule Nothing = "<hr style=\"margin-bottom: 1em;\">"
+renderInlineHrule (Just width) =
+    "<hr style=\"width: " ++ width ++ "px; margin-left: auto; margin-right: auto; margin-bottom: 1em;\">"
 
 -- | Collect lines belonging to a block (non-empty lines after the header)
 spanBlock :: [String] -> ([String], [String])
