@@ -3,11 +3,11 @@ title: Code
 ---
 
 After I retired from my career as a mathematician, I tried my hand
-at a [ilink 202601170832 "programming project"] that still occupies much of my time, the app
+at a [ilink 202601170832 "programming project"] that still occupies much of my time — the app
 [scripta.io](https://scripta.io), a web-based editor and publishing
 platform for mathematics and math-heavy disciplines like physics. 
 After several unsatisfying attempts 
-to build Scripta with the usual the usual languages for building web apps, 
+to build Scripta with the usual languages, 
 I discovered the world of typed functional programming, exemplified by the languages
 Elm, Haskell, and OCaml.  Elm turned out to be the right choice for Scripta.  Below
 are links to smaller examples of apps built with Elm.
