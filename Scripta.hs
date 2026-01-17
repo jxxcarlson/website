@@ -211,34 +211,78 @@ renderVspace block =
 
 -- | Render an image block
 -- Args: background (makes it a background image)
--- Props: width, caption
+-- Props: width, caption, float, display (row for horizontal arrangement)
 renderImage :: Block -> [String]
 renderImage block =
-    let filename = case blockContent block of
-            (f:_) -> trim f
-            [] -> ""
-        imgPath = "/media/images/" ++ filename
+    let display = getProp "display" block
         isBackground = hasArg "background" block
-    in if isBackground
-       then renderBackgroundImage imgPath block
-       else renderNormalImage imgPath block
+    in case display of
+        Just "row" -> renderImageRow block
+        _ ->
+            let filename = case blockContent block of
+                    (f:_) -> trim f
+                    [] -> ""
+                imgPath = "/media/images/" ++ filename
+            in if isBackground
+               then renderBackgroundImage imgPath block
+               else renderNormalImage imgPath block
+
+-- | Render multiple images in a horizontal row
+-- Syntax: | image display:row width:200
+--         img1.webp, img2.webp, img3.webp
+renderImageRow :: Block -> [String]
+renderImageRow block =
+    let content = case blockContent block of
+            (c:_) -> c
+            [] -> ""
+        -- Split by comma and trim each filename
+        filenames = map trim $ splitOn ',' content
+        width = fromMaybe "200" (getProp "width" block)
+        imgTags = map (\f -> "<img src=\"/media/images/" ++ f ++ "\" width=\"" ++ width ++ "\" style=\"margin-right: 0.5em;\">") filenames
+    in ["<div style=\"display: flex; flex-wrap: wrap; gap: 0.5em;\">"]
+       ++ map ("  " ++) imgTags
+       ++ ["</div>"]
+
+-- | Split a string by a delimiter
+splitOn :: Char -> String -> [String]
+splitOn _ [] = []
+splitOn delim s =
+    let (first, rest) = break (== delim) s
+    in first : case rest of
+        [] -> []
+        (_:xs) -> splitOn delim xs
 
 -- | Render a normal inline image
+-- Props: width, caption, float (left/right for text wrapping)
 renderNormalImage :: String -> Block -> [String]
 renderNormalImage imgPath block =
     let width = getProp "width" block
         caption = getProp "caption" block
+        floatDir = getProp "float" block
         widthAttr = maybe "" (\w -> " width=\"" ++ w ++ "\"") width
         altText = fromMaybe (takeFileName imgPath) caption
         imgTag = "<img src=\"" ++ imgPath ++ "\"" ++ widthAttr ++ " alt=\"" ++ altText ++ "\">"
-    in case caption of
-        Just cap ->
+        -- Float styling with margin for text spacing
+        floatStyle = case floatDir of
+            Just "left"  -> "float: left; margin-right: 1.5em; margin-bottom: 1em;"
+            Just "right" -> "float: right; margin-left: 1.5em; margin-bottom: 1em;"
+            _ -> ""
+    in case (caption, floatDir) of
+        (Just cap, Just _) ->
+            [ "<figure style=\"" ++ floatStyle ++ "\">"
+            , "  " ++ imgTag
+            , "  <figcaption>" ++ cap ++ "</figcaption>"
+            , "</figure>"
+            ]
+        (Just cap, Nothing) ->
             [ "<figure>"
             , "  " ++ imgTag
             , "  <figcaption>" ++ cap ++ "</figcaption>"
             , "</figure>"
             ]
-        Nothing -> [imgTag]
+        (Nothing, Just _) ->
+            [ "<div style=\"" ++ floatStyle ++ "\">" ++ imgTag ++ "</div>" ]
+        (Nothing, Nothing) -> [imgTag]
 
 -- | Render a background image (full-width hero style)
 renderBackgroundImage :: String -> Block -> [String]

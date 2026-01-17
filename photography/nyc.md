@@ -4,7 +4,7 @@ title: New York City
 
 | slideshow width:600
 nyc/18_West_10th_Ave_IMG_0259.webp | 18 West 10th Avenue from the Highline
-nyc/spriral_stairs_IMG_1804.webp | Spiral Stairs near Union Square
+    nyc/spriral_stairs_IMG_1804.webp | Spiral Stairs near Union Square
 nyc/spiral_stairs_IMG_2466.webp | Spiral Stairs near Union Square
 nyc/Our_Neighborhood_Place_IMG_0268.webp | Harlem
 nyc/Wall_and_Vine_IMG_4834.webp | Wall and Vine from Metro North Station 125th Street
