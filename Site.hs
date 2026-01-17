@@ -103,12 +103,14 @@ main = do
             route idRoute
             compile copyFileCompiler
 
-        -- Notes index page (obscured URL)
+        -- Notes index page (obscured URL) - excludes diary entries
         create ["brz891/notes/index.html"] $ do
             route idRoute
             compile $ do
-                notes <- loadAll "archive/**.txt"
-                let notesCtx =
+                allNotes <- loadAll "archive/**.txt"
+                -- Filter out diary entries
+                let notes = filter (\n -> itemIdentifier n `notElem` diaryFiles) allNotes
+                    notesCtx =
                         listField "notes" noteCtx (return notes) `mappend`
                         constField "title" "Notes"               `mappend`
                         defaultContext
