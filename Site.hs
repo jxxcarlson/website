@@ -202,8 +202,8 @@ combinedPostCtx =
         let path = toFilePath (itemIdentifier item)
             filename = reverse $ takeWhile (/= '/') $ reverse path
             basename = reverse $ drop 1 $ dropWhile (/= '.') $ reverse filename
-        -- Check if it's an archive file (starts with 12+ digits)
-        if length filename > 12 && all (`elem` ['0'..'9']) (take 12 filename)
+        -- Check if it's an archive file (starts with 12 digits)
+        if length filename >= 12 && all (`elem` ['0'..'9']) (take 12 filename)
             then do
                 let zettelId = take 8 filename
                 return $ formatDate zettelId
@@ -225,11 +225,16 @@ combinedPostCtx =
         let path = toFilePath (itemIdentifier item)
             filename = reverse $ drop 1 $ dropWhile (/= '.') $ reverse $
                        reverse $ takeWhile (/= '/') $ reverse path
-        -- Check if it's an archive file
-        if length filename > 12 && all (`elem` ['0'..'9']) (take 12 filename)
+        -- Check if it's an archive file (Zettelkasten format with 12 digit prefix)
+        if length filename >= 12 && all (`elem` ['0'..'9']) (take 12 filename)
             then do
-                let title = dropWhile (== ' ') $ dropWhile (/= ' ') filename
-                return $ if null title then filename else title
+                -- Read title from first line of file content
+                content <- unsafeCompiler $ readFile path
+                let contentLines = lines content
+                    title = if not (null contentLines)
+                            then head contentLines
+                            else "Untitled"
+                return $ if null title then "Untitled" else title
             else do
                 metadata <- getMetadata (itemIdentifier item)
                 case lookupString "title" metadata of
@@ -260,12 +265,12 @@ recentFirst' items = return $ sortBy (flip compareByDate) items
     getDateKey item =
         let path = toFilePath (itemIdentifier item)
             filename = reverse $ takeWhile (/= '/') $ reverse path
-        in if length filename > 12 && all (`elem` ['0'..'9']) (take 12 filename)
+        in if length filename >= 12 && all (`elem` ['0'..'9']) (take 12 filename)
            then take 12 filename  -- Zettelkasten ID is the date
            else filename          -- For regular posts, filename contains date
 
 -- | Context for archive notes converted to posts
--- Extracts date and title from Zettelkasten ID (e.g., "202601162353 First Post")
+-- Extracts title from first line of content, date from filename
 archivePostCtx :: Context String
 archivePostCtx =
     field "date" extractDate `mappend`
@@ -291,10 +296,12 @@ archivePostCtx =
 
     extractTitle item = do
         let path = toFilePath (itemIdentifier item)
-            filename = takeBaseName' path
-            -- Strip Zettelkasten ID prefix (e.g., "202102180950 ")
-            title = dropWhile (== ' ') $ dropWhile (/= ' ') filename
-        return $ if null title then filename else title
+        content <- unsafeCompiler $ readFile path
+        let contentLines = lines content
+            title = if not (null contentLines)
+                    then head contentLines
+                    else "Untitled"
+        return $ if null title then "Untitled" else title
 
     takeBaseName' p = reverse $ drop 1 $ dropWhile (/= '.') $ reverse $
                       reverse $ takeWhile (/= '/') $ reverse p
@@ -385,11 +392,11 @@ scriptaCompiler = do
         Left err -> fail $ show err
         Right html -> makeItem (T.unpack html)
 
--- | Compiler for archive posts - strips #post tags before rendering
+-- | Compiler for archive posts - strips first line (title) and #post tags
 txtPostCompiler :: Compiler (Item String)
 txtPostCompiler = do
     body <- getResourceBody
-    let content = stripPostTags (itemBody body)
+    let content = stripPostTags $ stripFirstLine (itemBody body)
         readerOpts = defaultHakyllReaderOptions
             { readerExtensions = enableExtension Ext_tex_math_dollars $
                                  enableExtension Ext_tex_math_double_backslash $
@@ -411,15 +418,17 @@ stripPostTags = unlines . filter (not . isPostTag) . lines
     isPostTag line = "#post" `isPrefixOf` (dropWhile isSpace line)
 
 -- | Scan archive directory for files containing #post tags
--- Returns a map of Identifier -> Maybe category
-scanArchiveForPosts :: FilePath -> IO (M.Map Identifier (Maybe String))
+-- Returns a map of Identifier -> (Maybe category, title)
+scanArchiveForPosts :: FilePath -> IO (M.Map Identifier (Maybe String, String))
 scanArchiveForPosts dir = do
     files <- findTxtFiles dir
     results <- forM files $ \path -> do
         content <- readFile path
         let category = extractPostCategory content
+            contentLines = lines content
+            title = if not (null contentLines) then head contentLines else ""
         return $ if hasPostTag content
-                 then Just (fromFilePath path, category)
+                 then Just (fromFilePath path, (category, title))
                  else Nothing
     return $ M.fromList $ catMaybes results
 
@@ -454,17 +463,13 @@ extractPostCategory content =
   where
     isPostLine line = "#post" `isPrefixOf` (dropWhile isSpace line)
 
--- | Convert archive path to post path based on category
+-- | Convert archive path to post path based on category and title
 -- archive/202601162353 First Post.txt -> posts/first-post.html
 -- archive/202601162353 Physics Note.txt (with #post/physics) -> posts/physics/physics-note.html
-archiveToPostRoute :: M.Map Identifier (Maybe String) -> Identifier -> FilePath
+archiveToPostRoute :: M.Map Identifier (Maybe String, String) -> Identifier -> FilePath
 archiveToPostRoute postMap ident =
-    let path = toFilePath ident
-        filename = takeBaseName path
-        -- Strip Zettelkasten ID prefix and convert to slug
-        title = dropWhile (== ' ') $ dropWhile (/= ' ') filename
-        slug = toSlug (if null title then filename else title)
-        category = M.findWithDefault Nothing ident postMap
+    let (category, title) = M.findWithDefault (Nothing, "untitled") ident postMap
+        slug = toSlug (if null title then "untitled" else title)
     in case category of
         Just cat -> "posts" </> cat </> slug ++ ".html"
         Nothing  -> "posts" </> slug ++ ".html"
