@@ -4,7 +4,8 @@ title: jxxcarlson.github.io
 
 - [Blog](/blog.html) - Articles and posts
 - [Photography](/photography/) - Photo gallery
-- [Projects](/projects.html) - Software projects and experiments
+- [Music](/music) - Some compositions
+- [Code](/projects.html) - Software projects and experiments
 - [Notes](/notes.html) - Working notes from The Archive
 - [About](/about.html) 
 

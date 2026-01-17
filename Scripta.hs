@@ -153,8 +153,25 @@ renderBlock block = case blockType block of
     "audio"     -> renderAudio block
     "prog"      -> renderProg block
     "video"     -> renderVideo block
+    "center"    -> renderCenter block
+    "vspace"    -> renderVspace block
     "hide"      -> []  -- Hidden content, renders nothing
     _ -> ["<!-- Unknown Scripta block: " ++ blockType block ++ " -->"]
+
+-- | Render a center block
+renderCenter :: Block -> [String]
+renderCenter block =
+    let content = unlines (blockContent block)
+    in ["<div style=\"text-align: center;\">", content, "</div>"]
+
+-- | Render a vspace block (vertical space)
+-- Syntax: | vspace 20  (inserts 20 pixels of vertical space)
+renderVspace :: Block -> [String]
+renderVspace block =
+    let pixels = case blockArgs block of
+            (n:_) -> n
+            [] -> "0"
+    in ["<div style=\"height: " ++ pixels ++ "px;\"></div>"]
 
 -- | Render an image block
 -- Args: background (makes it a background image)
@@ -265,17 +282,14 @@ renderProg block =
             ]
 
 -- | Render a video block (Vimeo or YouTube embed)
--- Args: first arg is caption/title
--- Props: width, height
+-- Props: width, height, caption
 -- Content: video URL
 renderVideo :: Block -> [String]
 renderVideo block =
     let url = case blockContent block of
             (u:_) -> trim u
             [] -> ""
-        caption = case blockArgs block of
-            (c:rest) -> unwords (c:rest)
-            [] -> ""
+        caption = fromMaybe "" (getProp "caption" block)
         width = fromMaybe "640" (getProp "width" block)
         height = fromMaybe "360" (getProp "height" block)
         embedUrl = getEmbedUrl url
