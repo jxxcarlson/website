@@ -2,28 +2,15 @@
 title: Code
 ---
 
-Back in the 1960's I had a summer research job as an undergraduate at the University of Idaho
-assisting a member of the physics department with some numerical computations
-for color sites in crystals. The goal, as I remember it, was to determine
-their energy spectrum.  To do this I had to learn some quantum mechanics,
-some numerical analysis, and some programming.  In those days the latter meant
-Fortran, writing out the program by hand, punching it into a card deck, 
-submitting the deck to a reader attached to an IBM 1620 computer, and
-then waiting for the output — usually a bug report — to appear on the line printer.
-
-I learned a great deal that summer, flirted with physics for a while, and eventually
-went on to graduate school at Princeton in mathematics.  A great cultural shock
-it was, but I survived and embarked on a long and satisfying career in mathematics.
-Every few years I would get involved in some small programming project, occasionally
-as part of work, but usually just for fun or to satisfy my
-curiosity. Often in a different language than the one I used last time.  Basic, 
-Pascal, Lisp, Scheme, Javascript ...
-
-After I retired, I discovered a language family totally unbeknownst to me: typed functional
-programming and the languages Elm and Haskell. Such linguistic and conceptual beauty!  I felt
-like Rip Van Winkle, having awakened after a long sleep to find a changed world.
-
-Below are links to some experiments with these languages (mostly Elm, some Haskell).
+After I retired from my career as a mathematician, I tried my hand
+at a programming project that still occupies much of my time, the app
+[scripta.io](https://scripta.io), a web-based editor and publishing
+platform for mathematics and math-heavy disciplines like physics. 
+After several unsatisfying attempts 
+to build Scripta with the usual the usual languages for building web apps, 
+I discovered the world of typed functional programming, exemplified by the languages
+Elm, Haskell, and OCaml.  Elm turned out to be the right choice for Scripta.  Below
+are links to smaller examples of apps built with Elm.
 
 
 ## Scripta
@@ -33,15 +20,23 @@ Below are links to some experiments with these languages (mostly Elm, some Haske
 
 ## Models
 - [Random Exchange Model](https://jxxcarlson.github.io/app/small-economy/index.html), [Code: small_economy](https://github.com/jxxcarlson/small-economy)
-  This app uses [Evan Czaplicki's Elm Playground](https://package.elm-lang.org/packages/evancz/elm-playground/latest/)
+  This app uses [Evan Czaplicki's Elm Playground](https://package.elm-lang.org/packages/evancz/elm-playground/latest/).
+  The app simulates an economy whose rules seem to treat people fairly.  However, 
+  an initial state in which players start with equal resources inevitably evolves
+  to one of very high inequality.
 - [Schelling's Segregation Model](https://jxxcarlson.github.io/app/schelling.html),  [Code](https://github.com/jxxcarlson/schelling)
+  Schelling’s segregation model (early 1970s) is a simple agent-based model 
+  showing how strong residential segregation can emerge even when i
+  individuals have only mild, non-racist preferences about who lives nearby.
 - [Game of Life](https://jxxcarlson.github.io/app/gameoflife2.html)
-- [prog "Microbial Life X1" microbial_life/index.html], [Code](https://github.com/jxxcarlson/elm-microbialLife)
+  Conway's classic "Game of Life" played on a 100x100 grid.
+- [prog "Microbial Life" microbial_life/index.html], [Code](https://github.com/jxxcarlson/elm-microbialLife)
+  A simulation of an imaginary three-species bacterial world.
 
 ## Physics Simulations
 - [Gambler's Ruin](https://jxxcarlson.github.io/app/gamblers_ruin.html)
 - [Heat equation](https://jxxcarlson.github.io/app/heat-model.html)
-- [Heat equation, webGL version](https://jxxcarlson.github.io/app/heat-model-gl.html)
+- [Heat equation, version 2](https://jxxcarlson.github.io/app/heat-model-gl.html)
 
 ## Just for fun
 - [Fake Drum Language App](https://jxxcarlson.github.io/app/drumlanguage.html)

@@ -1,5 +1,5 @@
 ---
-title: jxxcarlson.github.io
+title: jxxcarlson
 ---
 
 - [Blog](/blog.html) - Articles and posts
