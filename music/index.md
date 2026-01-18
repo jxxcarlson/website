@@ -26,7 +26,7 @@ music/musicians.webp
 - Inga Kashkashvili, Pianist
 - James Carlson, Composer
 - Devin Cohen, Basoonist
-- Emallie Trello, Clarinetist
+- Emmalie Tello, Clarinetist
 - Lora Al-Ahmad, Composer and Pianist
 
 
