@@ -219,7 +219,13 @@ main = do
 postCtx :: Context String
 postCtx =
     dateField "date" "%B %e, %Y" `mappend`
+    field "wordcount" wordCount `mappend`
     defaultContext
+  where
+    wordCount item = return $ show $ length $ words $ stripTags $ itemBody item
+    stripTags [] = []
+    stripTags ('<':xs) = stripTags $ drop 1 $ dropWhile (/= '>') xs
+    stripTags (x:xs) = x : stripTags xs
 
 -- | Combined context that works for both regular posts and archive posts
 combinedPostCtx :: Context String
@@ -305,8 +311,14 @@ archivePostCtx :: Context String
 archivePostCtx =
     field "date" extractDate `mappend`
     field "title" extractTitle `mappend`
+    field "wordcount" wordCount `mappend`
     defaultContext
   where
+    wordCount item = return $ show $ length $ words $ stripTags $ itemBody item
+    stripTags [] = []
+    stripTags ('<':xs) = stripTags $ drop 1 $ dropWhile (/= '>') xs
+    stripTags (x:xs) = x : stripTags xs
+
     extractDate item = do
         let path = toFilePath (itemIdentifier item)
             filename = takeBaseName' path
@@ -343,8 +355,14 @@ diaryEntryCtx :: Context String
 diaryEntryCtx =
     field "date" extractDate `mappend`
     field "title" extractTitleFromContent `mappend`
+    field "wordcount" wordCount `mappend`
     defaultContext
   where
+    wordCount item = return $ show $ length $ words $ stripTags $ itemBody item
+    stripTags [] = []
+    stripTags ('<':xs) = stripTags $ drop 1 $ dropWhile (/= '>') xs
+    stripTags (x:xs) = x : stripTags xs
+
     extractDate item = do
         let path = toFilePath (itemIdentifier item)
             filename = takeBaseName' path
@@ -381,8 +399,14 @@ memoirsEntryCtx :: Context String
 memoirsEntryCtx =
     field "date" extractDate `mappend`
     field "title" extractTitleFromContent `mappend`
+    field "wordcount" wordCount `mappend`
     defaultContext
   where
+    wordCount item = return $ show $ length $ words $ stripTags $ itemBody item
+    stripTags [] = []
+    stripTags ('<':xs) = stripTags $ drop 1 $ dropWhile (/= '>') xs
+    stripTags (x:xs) = x : stripTags xs
+
     extractDate item = do
         let path = toFilePath (itemIdentifier item)
             filename = takeBaseName' path
