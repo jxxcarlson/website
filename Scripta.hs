@@ -264,8 +264,8 @@ renderNormalImage imgPath block =
         imgTag = "<img src=\"" ++ imgPath ++ "\"" ++ widthAttr ++ " alt=\"" ++ altText ++ "\">"
         -- Float styling with margin for text spacing
         floatStyle = case floatDir of
-            Just "left"  -> "float: left; margin-right: 1.5em; margin-bottom: 1em;"
-            Just "right" -> "float: right; margin-left: 1.5em; margin-bottom: 1em;"
+            Just "left"  -> "float: left; margin-top: 0.5rem; margin-right: 1.5em; margin-bottom: 1em;"
+            Just "right" -> "float: right; margin-top: 0.5rem; margin-left: 1.5em; margin-bottom: 1em;"
             _ -> ""
     in case (caption, floatDir) of
         (Just cap, Just _) ->
