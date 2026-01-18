@@ -253,15 +253,20 @@ splitOn delim s =
         (_:xs) -> splitOn delim xs
 
 -- | Render a normal inline image
--- Props: width, caption, float (left/right for text wrapping)
+-- Props: width, caption, float (left/right for text wrapping), ilink (clickable link URL)
 renderNormalImage :: String -> Block -> [String]
 renderNormalImage imgPath block =
     let width = getProp "width" block
         caption = getProp "caption" block
         floatDir = getProp "float" block
+        imageLink = getProp "ilink" block
         widthAttr = maybe "" (\w -> " width=\"" ++ w ++ "\"") width
         altText = fromMaybe (takeFileName imgPath) caption
         imgTag = "<img src=\"" ++ imgPath ++ "\"" ++ widthAttr ++ " alt=\"" ++ altText ++ "\">"
+        -- Wrap in link if ilink property is present
+        linkedImg = case imageLink of
+            Just url -> "<a href=\"" ++ url ++ "\">" ++ imgTag ++ "</a>"
+            Nothing  -> imgTag
         -- Float styling with margin for text spacing
         floatStyle = case floatDir of
             Just "left"  -> "float: left; margin-top: 0.5rem; margin-right: 1.5em; margin-bottom: 1em;"
@@ -270,29 +275,55 @@ renderNormalImage imgPath block =
     in case (caption, floatDir) of
         (Just cap, Just _) ->
             [ "<figure style=\"" ++ floatStyle ++ "\">"
-            , "  " ++ imgTag
+            , "  " ++ linkedImg
             , "  <figcaption>" ++ cap ++ "</figcaption>"
             , "</figure>"
             ]
         (Just cap, Nothing) ->
             [ "<figure>"
-            , "  " ++ imgTag
+            , "  " ++ linkedImg
             , "  <figcaption>" ++ cap ++ "</figcaption>"
             , "</figure>"
             ]
         (Nothing, Just _) ->
-            [ "<div style=\"" ++ floatStyle ++ "\">" ++ imgTag ++ "</div>" ]
-        (Nothing, Nothing) -> [imgTag]
+            [ "<div style=\"" ++ floatStyle ++ "\">" ++ linkedImg ++ "</div>" ]
+        (Nothing, Nothing) -> [linkedImg]
 
--- | Render a background image (full-width hero style)
+-- | Render a background image
+-- If opacity is specified, sets entire page background
+-- Otherwise renders as full-width hero style div
 renderBackgroundImage :: String -> Block -> [String]
 renderBackgroundImage imgPath block =
-    let height = fromMaybe "300" (getProp "height" block)
+    let opacity = getProp "opacity" block
         caption = getProp "caption" block
-        captionHtml = maybe [] (\c -> ["<div class=\"bg-caption\">" ++ c ++ "</div>"]) caption
-    in [ "<div class=\"background-image\" style=\"background-image: url('" ++ imgPath ++ "'); height: " ++ height ++ "px;\">"
-       , "</div>"
-       ] ++ captionHtml
+    in case opacity of
+        Just op ->
+            -- Page-wide background with opacity using ::before pseudo-element
+            [ "<style>"
+            , "body { position: relative; }"
+            , "body::before {"
+            , "  content: \"\";"
+            , "  position: fixed;"
+            , "  top: 0;"
+            , "  left: 0;"
+            , "  width: 100%;"
+            , "  height: 100%;"
+            , "  background-image: url('" ++ imgPath ++ "');"
+            , "  background-size: cover;"
+            , "  background-position: center;"
+            , "  opacity: " ++ op ++ ";"
+            , "  z-index: -1;"
+            , "  pointer-events: none;"
+            , "}"
+            , "</style>"
+            ]
+        Nothing ->
+            -- Hero-style background div
+            let height = fromMaybe "300" (getProp "height" block)
+                captionHtml = maybe [] (\c -> ["<div class=\"bg-caption\">" ++ c ++ "</div>"]) caption
+            in [ "<div class=\"background-image\" style=\"background-image: url('" ++ imgPath ++ "'); height: " ++ height ++ "px;\">"
+               , "</div>"
+               ] ++ captionHtml
 
 -- | Render a PDF block
 -- Props: width (default 100%), height (default 600px)

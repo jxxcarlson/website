@@ -2,7 +2,7 @@
 title: jxxcarlson
 ---
 
-| image width:200 float:left
+| image width:200 float:left ilink:/blog.html caption:Blogging tool
 machines/typewriter_bw.webp
 
 | vspace 1
@@ -15,5 +15,6 @@ machines/typewriter_bw.webp
 
 | vspace 2
 
-| image background caption:Submerged
+| image background caption:Submerged opacity:0.35
 submerged.webp
+

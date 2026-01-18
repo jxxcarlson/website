@@ -2,15 +2,25 @@
 title: Code
 ---
 
-After I retired from my career as a mathematician, I tried my hand
-at a [ilink 202601170832 "programming project"] that still occupies much of my time — the app
+
+| image width:320 float:right
+machines/punched_card.webp
+
+
+As an  [ilink 202601170832 "undergraduate at the University of Idaho "], I 
+participated in summer research project where I had to learn some Fortran
+and a few other things, like how to punch cards. In the succeeding years I would occasionally
+write a little program, usually for fun, but occasionally to compute some
+mathematical example.  After I retired from my career as a mathematician, I tried my hand
+at a much bigger project that still occupies much of my time — the app
 [scripta.io](https://scripta.io), a web-based editor and publishing
 platform for mathematics and math-heavy disciplines like physics. 
 After several unsatisfying attempts 
 to build Scripta with the usual languages, 
 I discovered the world of typed functional programming, exemplified by the languages
-Elm, Haskell, and OCaml.  Elm turned out to be the right choice for Scripta.  Below
-are links to smaller examples of apps built with Elm.
+Elm, Haskell, and OCaml.  Elm turned out to be the right choice for Scripta.  As
+a functional language, it appealed to my mathematical and esthetic sensibilities.  I fell in love 
+with it, and have used it for many projects since then.  I've listed a few of these below.
 
 
 ## Scripta

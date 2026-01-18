@@ -183,9 +183,6 @@ figcaption {
     padding: 0.4rem 0;
 }
 
-.prog-link::before {
-    content: "Run ";
-}
 
 .prog-link:hover {
     color: #004499;

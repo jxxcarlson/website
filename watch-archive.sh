@@ -1,12 +1,20 @@
 #!/bin/bash
-# Watch the Archive folder and rebuild site on changes
+# Watch /Users/carlson/Desktop/ARCHIVE and trigger refresh.sh on changes
 
-ARCHIVE_DIR="$HOME/Desktop/ARCHIVE"
+WATCH_DIR="/Users/carlson/Desktop/ARCHIVE"
+LAST_HASH=""
 
-echo "Watching $ARCHIVE_DIR for changes..."
-echo "Press Ctrl+C to stop"
+echo "Watching $WATCH_DIR for changes (checking every 5 seconds)..."
 
-fswatch -o "$ARCHIVE_DIR" | while read; do
-    echo "Change detected, rebuilding..."
-    stack exec site build
+while true; do
+    # Get hash of file modification times
+    CURRENT_HASH=$(find "$WATCH_DIR" -type f -exec stat -f "%m %N" {} \; 2>/dev/null | sort | md5)
+    
+    if [ "$LAST_HASH" != "" ] && [ "$CURRENT_HASH" != "$LAST_HASH" ]; then
+        echo "$(date): Change detected, running refresh.sh..."
+        sh refresh.sh
+    fi
+    
+    LAST_HASH="$CURRENT_HASH"
+    sleep 5
 done
