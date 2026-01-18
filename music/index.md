@@ -17,15 +17,19 @@ https://vimeo.com/1155279422?share=copy&fl=sv&fe=ci
 | image caption:December 6 Concert
 music/concert_poster.webp
 
-| image The Musicians
+| image width:600 
 music/musicians.webp
 
-| hide
-I organized a concert of mostly new
-music at Klavierhaus in New York City on December 6, 2025 — see poster below,
-along with scores and
-audio files for my part of the program.
-Most of the pieces were written in 2025, but some are earlier work.
+| vspace 0
+
+- George Oakley, Composer
+- Inga Kashkashvili, Pianist
+- James Carlson, Composer
+- Devin Cohen, Basoonist
+- Emallie Trello, Clarinetist
+- Lora Al-Ahmad, Composer and Pianist
+
+
 
 The full program will be up on Youtube very soon
 
