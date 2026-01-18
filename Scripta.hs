@@ -211,13 +211,14 @@ renderVspace block =
 
 -- | Render an image block
 -- Args: background (makes it a background image)
--- Props: width, caption, float, display (row for horizontal arrangement)
+-- Props: width, caption, float, display (row for horizontal arrangement, fullwidth for 100% width)
 renderImage :: Block -> [String]
 renderImage block =
     let display = getProp "display" block
         isBackground = hasArg "background" block
     in case display of
         Just "row" -> renderImageRow block
+        Just "fullwidth" -> renderFullwidthImage block
         _ ->
             let filename = case blockContent block of
                     (f:_) -> trim f
@@ -242,6 +243,27 @@ renderImageRow block =
     in ["<div style=\"display: flex; flex-wrap: wrap; gap: 0.5em;\">"]
        ++ map ("  " ++) imgTags
        ++ ["</div>"]
+
+-- | Render a full-width image
+-- Syntax: | image display:fullwidth caption:My Image
+--         myimage.webp
+renderFullwidthImage :: Block -> [String]
+renderFullwidthImage block =
+    let filename = case blockContent block of
+            (f:_) -> trim f
+            [] -> ""
+        imgPath = "/media/images/" ++ filename
+        caption = getProp "caption" block
+        altText = fromMaybe (takeFileName imgPath) caption
+        imgTag = "<img src=\"" ++ imgPath ++ "\" style=\"width: 100%;\" alt=\"" ++ altText ++ "\">"
+    in case caption of
+        Just cap ->
+            [ "<figure style=\"margin: 1.5rem 0; width: 100%;\">"
+            , "  " ++ imgTag
+            , "  <figcaption>" ++ cap ++ "</figcaption>"
+            , "</figure>"
+            ]
+        Nothing -> [imgTag]
 
 -- | Split a string by a delimiter
 splitOn :: Char -> String -> [String]
