@@ -1,5 +1,6 @@
 <style>
 body { position: relative; }
+footer { border-top: none; }
 body::before {
   content: "";
   position: fixed;
@@ -7,10 +8,24 @@ body::before {
   left: 60%;
   width: 40%;
   height: 100%;
-  background-image: url('/media/images/music/IMG_3002.webp');
+  background-image: url('/media/images/music/jazz_harlem_IMG_3002.webp');
   background-size: cover;
   background-position: center;
   opacity: 1.0;
+  z-index: -1;
+  pointer-events: none;
+}
+body::after {
+  content: "";
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 20%;
+  height: 100%;
+  background-image: url('/media/images/art/rough.webp');
+  background-size: cover;
+  background-position: center;
+  opacity: .70;
   z-index: -1;
   pointer-events: none;
 }
