@@ -210,6 +210,7 @@ renderBlock block = case blockType block of
     "vspace"    -> renderVspace block
     "equation"  -> renderEquation block
     "theorem"   -> renderTheorem block
+    "quotation" -> renderQuotation block
     "hide"      -> []  -- Hidden content, renders nothing
     _ -> ["<!-- Unknown Scripta block: " ++ blockType block ++ " -->"]
 
@@ -259,6 +260,18 @@ renderTheorem block =
         content = unlines (blockContent block)
     in [ "<div class=\"theorem\">"
        , "<span class=\"theorem-label\">Theorem" ++ name ++ ".</span> " ++ trim content
+       , "</div>"
+       ]
+
+-- | Render a quotation block
+-- Syntax: | quotation
+--         To be or not to be...
+-- Renders indented and italicized
+renderQuotation :: Block -> [String]
+renderQuotation block =
+    let content = unlines (blockContent block)
+    in [ "<div class=\"quotation\">"
+       , trim content
        , "</div>"
        ]
 

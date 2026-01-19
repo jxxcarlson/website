@@ -236,3 +236,10 @@ figcaption {
     font-weight: bold;
     font-style: normal;
 }
+
+/* Quotation blocks */
+.quotation {
+    margin: 1.5rem 0;
+    margin-left: 2rem;
+    font-style: italic;
+}
