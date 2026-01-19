@@ -60,6 +60,7 @@ body.photography nav a:hover {
 body.photography nav a.active {
     font-weight: bold;
     color: #e8e8e8;
+    text-decoration: underline;
 }
 
 body.photography a {
