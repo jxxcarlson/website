@@ -50,6 +50,7 @@ processInline linkMap s@(c:cs)
 -- | Try to parse an inline element starting with '['
 -- Returns Just (rendered HTML, remaining string) or Nothing
 -- Supports quoted values: [prog "Title With Spaces" filename.html]
+-- Supports nesting: [i [b nested bold italic]]
 parseInlineElement :: LinkMap -> String -> Maybe (String, String)
 parseInlineElement linkMap s = do
     -- Find the closing bracket
@@ -57,24 +58,30 @@ parseInlineElement linkMap s = do
     idx <- findClosingBracket content 0
     let inner = take idx content
         rest = drop (idx + 1) content
+        -- Extract command (first word) and argument content (rest)
+        (cmd, argRest) = break isSpace (dropWhile isSpace inner)
+        argContent = dropWhile isSpace argRest
+        -- For commands that need multiple parsed arguments
         parts = parseQuotedWords inner
-    case parts of
-        ("prog":title:filename:_) ->
-            Just (renderInlineProg title filename, rest)
-        ["hrule"] ->
-            Just (renderInlineHrule Nothing, rest)
-        ["hrule", width] ->
-            Just (renderInlineHrule (Just width), rest)
-        ["ilink", zettelId] ->
-            Just (renderInlineLink linkMap zettelId Nothing, rest)
-        ["ilink", zettelId, customText] ->
-            Just (renderInlineLink linkMap zettelId (Just customText), rest)
-        ("i":ws) | not (null ws) ->
-            Just ("<em>" ++ unwords ws ++ "</em>", rest)
-        ("b":ws) | not (null ws) ->
-            Just ("<strong>" ++ unwords ws ++ "</strong>", rest)
-        ["par"] ->
-            Just ("<p class=\"par\"></p>", rest)
+    case cmd of
+        -- Text-wrapping elements: recursively process content
+        "i" | not (null argContent) ->
+            Just ("<em>" ++ processInline linkMap argContent ++ "</em>", rest)
+        "b" | not (null argContent) ->
+            Just ("<strong>" ++ processInline linkMap argContent ++ "</strong>", rest)
+        -- Other elements use parsed arguments
+        "prog" -> case parts of
+            (_:title:filename:_) -> Just (renderInlineProg title filename, rest)
+            _ -> Nothing
+        "hrule" -> case parts of
+            ["hrule"] -> Just (renderInlineHrule Nothing, rest)
+            ["hrule", width] -> Just (renderInlineHrule (Just width), rest)
+            _ -> Nothing
+        "ilink" -> case parts of
+            ["ilink", zettelId] -> Just (renderInlineLink linkMap zettelId Nothing, rest)
+            ["ilink", zettelId, customText] -> Just (renderInlineLink linkMap zettelId (Just customText), rest)
+            _ -> Nothing
+        "par" -> Just ("<p class=\"par\"></p>", rest)
         _ -> Nothing
 
 -- | Parse words, treating quoted strings as single words
@@ -94,11 +101,14 @@ parseQuotedWords s =
 
 -- | Find closing bracket, handling nesting
 findClosingBracket :: String -> Int -> Maybe Int
-findClosingBracket [] _ = Nothing
-findClosingBracket (c:cs) idx
-    | c == ']' = Just idx
-    | c == '[' = Nothing  -- Don't handle nested brackets
-    | otherwise = findClosingBracket cs (idx + 1)
+findClosingBracket s idx = go s idx 0
+  where
+    go [] _ _ = Nothing
+    go (c:cs) i depth
+        | c == ']' && depth == 0 = Just i
+        | c == ']' = go cs (i + 1) (depth - 1)
+        | c == '[' = go cs (i + 1) (depth + 1)
+        | otherwise = go cs (i + 1) depth
 
 -- | Render inline prog element as external link
 renderInlineProg :: String -> String -> String
