@@ -223,6 +223,21 @@ hasArg arg block = arg `elem` blockArgs block
 getProp :: String -> Block -> Maybe String
 getProp key block = lookup key (blockProps block)
 
+-- | Get first line of block content (typically a filename)
+getBlockFile :: Block -> String
+getBlockFile block = case blockContent block of
+    (f:_) -> trim f
+    [] -> ""
+
+-- | Wrap content in expandable link (opens in new window on click)
+wrapExpandable :: String -> String -> String
+wrapExpandable url content =
+    "<a href=\"" ++ url ++ "\" onclick=\"window.open(this.href, '_blank', 'menubar=no,toolbar=no,location=no'); return false;\">" ++ content ++ "</a>"
+
+-- | Process block content through inline processor
+processBlockContent :: LinkMap -> Block -> String
+processBlockContent linkMap block = unlines $ map (processInline linkMap) (blockContent block)
+
 -- | Render a block to HTML lines
 renderBlock :: LinkMap -> Block -> [String]
 renderBlock linkMap block = case blockType block of
@@ -243,7 +258,7 @@ renderBlock linkMap block = case blockType block of
 -- | Render a center block
 renderCenter :: LinkMap -> Block -> [String]
 renderCenter linkMap block =
-    let content = unlines $ map (processInline linkMap) (blockContent block)
+    let content = processBlockContent linkMap block
     in ["<div style=\"text-align: center;\">", content, "</div>"]
 
 -- | Render a vspace block (vertical space)
@@ -283,7 +298,7 @@ renderTheorem linkMap block =
     let name = case blockArgs block of
             (n:_) -> " " ++ n
             [] -> ""
-        content = unlines $ map (processInline linkMap) (blockContent block)
+        content = processBlockContent linkMap block
     in [ "<div class=\"theorem\">"
        , "<span class=\"theorem-label\">Theorem" ++ name ++ ".</span> " ++ trim content
        , "</div>"
@@ -295,7 +310,7 @@ renderTheorem linkMap block =
 -- Renders indented and italicized; optional title in bold above
 renderQuotation :: LinkMap -> Block -> [String]
 renderQuotation linkMap block =
-    let content = unlines $ map (processInline linkMap) (blockContent block)
+    let content = processBlockContent linkMap block
         title = getProp "title" block
         titleHtml = case title of
             Just t  -> ["<div class=\"quotation-title\"><strong>" ++ t ++ "</strong></div>"]
@@ -317,9 +332,7 @@ renderImage block =
         Just "row" -> renderImageRow block
         Just "fullwidth" -> renderFullwidthImage block
         _ ->
-            let filename = case blockContent block of
-                    (f:_) -> trim f
-                    [] -> ""
+            let filename = getBlockFile block
                 imgPath = "/media/images/" ++ filename
             in if isBackground
                then renderBackgroundImage imgPath block
@@ -331,9 +344,7 @@ renderImage block =
 -- Args: expandable (click opens image in new window)
 renderImageRow :: Block -> [String]
 renderImageRow block =
-    let content = case blockContent block of
-            (c:_) -> c
-            [] -> ""
+    let content = getBlockFile block
         -- Split by comma and trim each filename
         filenames = map trim $ splitOn ',' content
         width = fromMaybe "200" (getProp "width" block)
@@ -341,9 +352,7 @@ renderImageRow block =
         makeImg f =
             let imgPath = "/media/images/" ++ f
                 imgTag = "<img src=\"" ++ imgPath ++ "\" width=\"" ++ width ++ "\" style=\"margin-right: 0.5em;\">"
-            in if isExpandable
-               then "<a href=\"" ++ imgPath ++ "\" onclick=\"window.open(this.href, '_blank', 'menubar=no,toolbar=no,location=no'); return false;\">" ++ imgTag ++ "</a>"
-               else imgTag
+            in if isExpandable then wrapExpandable imgPath imgTag else imgTag
         imgTags = map makeImg filenames
     in ["<div style=\"display: flex; flex-wrap: wrap; gap: 0.5em;\">"]
        ++ map ("  " ++) imgTags
@@ -354,9 +363,7 @@ renderImageRow block =
 --         myimage.webp
 renderFullwidthImage :: Block -> [String]
 renderFullwidthImage block =
-    let filename = case blockContent block of
-            (f:_) -> trim f
-            [] -> ""
+    let filename = getBlockFile block
         imgPath = "/media/images/" ++ filename
         caption = getProp "caption" block
         altText = fromMaybe (takeFileName imgPath) caption
@@ -397,7 +404,7 @@ renderNormalImage imgPath block =
         -- Wrap in link: ilink takes priority, then expandable (opens in new window), then no link
         linkedImg = case imageLink of
             Just url -> "<a href=\"" ++ url ++ "\">" ++ imgTag ++ "</a>"
-            Nothing | isExpandable -> "<a href=\"" ++ imgPath ++ "\" onclick=\"window.open(this.href, '_blank', 'menubar=no,toolbar=no,location=no'); return false;\">" ++ imgTag ++ "</a>"
+            Nothing | isExpandable -> wrapExpandable imgPath imgTag
             Nothing  -> imgTag
         -- Float styling with margin for text spacing
         floatStyle = case floatDir of
@@ -462,9 +469,7 @@ renderBackgroundImage imgPath block =
 -- Content: path to PDF file
 renderPdf :: Block -> [String]
 renderPdf block =
-    let filename = case blockContent block of
-            (f:_) -> trim f
-            [] -> ""
+    let filename = getBlockFile block
         pdfPath = "/media/pdf/" ++ filename
         width = fromMaybe "100%" (getProp "width" block)
         height = fromMaybe "600px" (getProp "height" block)
@@ -478,9 +483,7 @@ renderPdf block =
 -- Content: path to audio file
 renderAudio :: Block -> [String]
 renderAudio block =
-    let filename = case blockContent block of
-            (f:_) -> trim f
-            [] -> ""
+    let filename = getBlockFile block
         audioPath = "/media/audio/" ++ filename
         title = fromMaybe filename (getProp "title" block)
         audioId = "audio-" ++ filter (`elem` (['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'])) filename
@@ -503,9 +506,7 @@ renderAudio block =
 -- Content: path to HTML file in /prog/
 renderProg :: Block -> [String]
 renderProg block =
-    let filename = case blockContent block of
-            (f:_) -> trim f
-            [] -> ""
+    let filename = getBlockFile block
         progPath = "/prog/" ++ filename
         title = fromMaybe filename (getProp "title" block)
         display = getProp "display" block
@@ -529,9 +530,7 @@ renderProg block =
 -- Content: video URL
 renderVideo :: Block -> [String]
 renderVideo block =
-    let url = case blockContent block of
-            (u:_) -> trim u
-            [] -> ""
+    let url = getBlockFile block
         caption = fromMaybe "" (getProp "caption" block)
         width = fromMaybe "640" (getProp "width" block)
         height = fromMaybe "360" (getProp "height" block)
@@ -630,9 +629,7 @@ renderSlide width height expandable (idx, (path, caption)) =
             (Nothing, Just h) -> " style=\"height: " ++ h ++ "px;\""
             (Nothing, Nothing) -> ""
         imgTag = "<img src=\"" ++ imgPath ++ "\"" ++ styleAttr ++ ">"
-        linkedImg = if expandable
-                    then "<a href=\"" ++ imgPath ++ "\" onclick=\"window.open(this.href, '_blank', 'menubar=no,toolbar=no,location=no'); return false;\">" ++ imgTag ++ "</a>"
-                    else imgTag
+        linkedImg = if expandable then wrapExpandable imgPath imgTag else imgTag
         captionHtml = maybe "" (\c -> "<div class=\"slide-caption\">" ++ c ++ "</div>") caption
     in [ "<div class=\"slide" ++ activeClass ++ "\" data-index=\"" ++ show idx ++ "\">"
        , linkedImg
