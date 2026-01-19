@@ -22,17 +22,18 @@
     </header>
     <script>
     (function() {
+        function stripTrailingSlash(s) {
+            return s.length > 1 && s.charAt(s.length - 1) === '/' ? s.slice(0, -1) : s;
+        }
         var path = window.location.pathname;
         var links = document.querySelectorAll('nav a');
         for (var i = 0; i < links.length; i++) {
-            var href = links[i].getAttribute('href');
-            var hrefBase = href.replace('.html', '');
-            if (hrefBase.charAt(hrefBase.length - 1) === '/') {
-                hrefBase = hrefBase.slice(0, -1);
-            }
-            if (href === '/' && path === '/') {
+            var linkPath = new URL(links[i].href).pathname;
+            var linkBase = stripTrailingSlash(linkPath.replace('.html', ''));
+            var pathBase = stripTrailingSlash(path.replace('.html', ''));
+            if (linkPath === '/' && path === '/') {
                 links[i].classList.add('active');
-            } else if (href !== '/' && path.indexOf(hrefBase) === 0) {
+            } else if (linkPath !== '/' && pathBase.indexOf(linkBase) === 0) {
                 links[i].classList.add('active');
             }
         }
