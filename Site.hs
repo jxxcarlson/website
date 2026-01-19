@@ -16,18 +16,25 @@ import Data.Maybe (catMaybes, mapMaybe)
 
 main :: IO ()
 main = do
-    -- Pre-scan archive files for #post, #diary, and #memoirs tags
+    -- Pre-scan archive files for #post, #diary, #memoirs, and #note tags
     postMap <- scanArchiveForPosts "archive"
     diaryMap <- scanArchiveForDiary "archive"
     memoirsMap <- scanArchiveForMemoirs "archive"
+    notesMap <- scanArchiveForNotes "archive"
     let postFiles = M.keys postMap
         diaryFiles = M.keys diaryMap
         memoirsFiles = M.keys memoirsMap
+        noteFiles = M.keys notesMap
 
     -- Scan posts for content tags (#tag:xyz)
     postTagMap <- scanArchiveForContentTags "archive" postFiles
     let tagIndex = buildTagIndex postTagMap
         allTags = sort $ M.keys tagIndex
+
+    -- Scan notes for content tags (#tag:xyz)
+    noteTagMap <- scanArchiveForContentTags "archive" noteFiles
+    let noteTagIndex = buildTagIndex noteTagMap
+        allNoteTags = sort $ M.keys noteTagIndex
 
     -- Build the link map for internal links
     linkMap <- buildLinkMap "archive" postMap diaryMap memoirsMap
@@ -127,17 +134,19 @@ main = do
             route idRoute
             compile copyFileCompiler
 
-        -- Notes index page - excludes diary and memoirs entries
+        -- Notes index page - only shows files with #note tag
         create ["notes/index.html"] $ do
             route idRoute
             compile $ do
-                allNotes <- loadAll "archive/**.txt"
-                -- Filter out diary and memoirs entries
-                let notes = filter (\n -> itemIdentifier n `notElem` diaryFiles &&
-                                          itemIdentifier n `notElem` memoirsFiles) allNotes
+                notes <- loadAll (fromList noteFiles)
+                -- Create tag list items for buttons
+                noteTagItems <- mapM makeItem allNoteTags
+                let tagCtx = field "tag" (return . itemBody)
+                    noteCtxWithTags = noteCtxWithTagsF noteTagMap
                     notesCtx =
-                        listField "notes" noteCtx (return notes) `mappend`
-                        constField "title" "Notes"               `mappend`
+                        listField "notes" noteCtxWithTags (return notes) `mappend`
+                        listField "tagList" tagCtx (return noteTagItems) `mappend`
+                        constField "title" "Notes"                       `mappend`
                         defaultContext
 
                 makeItem ""
@@ -479,6 +488,14 @@ noteCtx =
                     else "Untitled"
         return $ if null title then "Untitled" else title
 
+-- | Note context with tags field for notes page filtering
+noteCtxWithTagsF :: M.Map Identifier [String] -> Context String
+noteCtxWithTagsF tagMap =
+    field "tags" getTags `mappend`
+    noteCtx
+  where
+    getTags item = return $ unwords $ M.findWithDefault [] (itemIdentifier item) tagMap
+
 txtCompiler :: LinkMap -> Compiler (Item String)
 txtCompiler linkMap = do
     body <- getResourceBody
@@ -628,6 +645,20 @@ scanArchiveForMemoirs dir = do
         let contentLines = lines content
             title = if not (null contentLines) then head contentLines else ""
         return $ if hasTag "#memoirs" content
+                 then Just (fromFilePath path, title)
+                 else Nothing
+    return $ M.fromList $ catMaybes results
+
+-- | Scan archive directory for files containing #note tag
+-- Returns a map of Identifier -> title (from first line of file)
+scanArchiveForNotes :: FilePath -> IO (M.Map Identifier String)
+scanArchiveForNotes dir = do
+    files <- findTxtFiles dir
+    results <- forM files $ \path -> do
+        content <- readFile path
+        let contentLines = lines content
+            title = if not (null contentLines) then head contentLines else ""
+        return $ if hasTag "#note" content
                  then Just (fromFilePath path, title)
                  else Nothing
     return $ M.fromList $ catMaybes results
