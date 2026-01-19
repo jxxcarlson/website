@@ -88,6 +88,13 @@ parseInlineElement linkMap s = do
             ["ilink", zettelId] -> Just (renderInlineLink linkMap zettelId Nothing, rest)
             ["ilink", zettelId, customText] -> Just (renderInlineLink linkMap zettelId (Just customText), rest)
             _ -> Nothing
+        "link" -> case parts of
+            ("link":args) | length args >= 2 ->
+                -- Last word is URL, everything else is label
+                let url = last args
+                    label = unwords (init args)
+                in Just ("<a href=\"" ++ url ++ "\" target=\"_blank\" rel=\"noopener noreferrer\">" ++ label ++ "</a>", rest)
+            _ -> Nothing
         "par" -> Just ("<p class=\"par\"></p>", rest)
         _ -> Nothing
 
