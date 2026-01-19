@@ -319,8 +319,9 @@ renderImage block =
                else renderNormalImage imgPath block
 
 -- | Render multiple images in a horizontal row
--- Syntax: | image display:row width:200
+-- Syntax: | image expandable display:row width:200
 --         img1.webp, img2.webp, img3.webp
+-- Args: expandable (click opens image in new window)
 renderImageRow :: Block -> [String]
 renderImageRow block =
     let content = case blockContent block of
@@ -329,7 +330,14 @@ renderImageRow block =
         -- Split by comma and trim each filename
         filenames = map trim $ splitOn ',' content
         width = fromMaybe "200" (getProp "width" block)
-        imgTags = map (\f -> "<img src=\"/media/images/" ++ f ++ "\" width=\"" ++ width ++ "\" style=\"margin-right: 0.5em;\">") filenames
+        isExpandable = hasArg "expandable" block
+        makeImg f =
+            let imgPath = "/media/images/" ++ f
+                imgTag = "<img src=\"" ++ imgPath ++ "\" width=\"" ++ width ++ "\" style=\"margin-right: 0.5em;\">"
+            in if isExpandable
+               then "<a href=\"" ++ imgPath ++ "\" onclick=\"window.open(this.href, '_blank', 'menubar=no,toolbar=no,location=no'); return false;\">" ++ imgTag ++ "</a>"
+               else imgTag
+        imgTags = map makeImg filenames
     in ["<div style=\"display: flex; flex-wrap: wrap; gap: 0.5em;\">"]
        ++ map ("  " ++) imgTags
        ++ ["</div>"]
