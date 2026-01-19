@@ -3,7 +3,7 @@
 
 echo "Rebuilding site..."
 stack exec site rebuild
-# stack buildq
+# stack build
 
 echo "Deploying to Cloudflare..."
 wrangler pages deploy _site --project-name=jxxcarlson

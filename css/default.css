@@ -30,6 +30,11 @@ nav a:hover {
     text-decoration: underline;
 }
 
+nav a.active {
+    font-weight: bold;
+    color: #333;
+}
+
 main {
     min-height: 60vh;
 }

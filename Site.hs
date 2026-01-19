@@ -326,9 +326,21 @@ combinedPostCtx =
 combinedPostCtxWithTags :: M.Map Identifier [String] -> Context String
 combinedPostCtxWithTags tagMap =
     field "tags" getTags `mappend`
+    field "content" getContent `mappend`
     combinedPostCtx
   where
     getTags item = return $ unwords $ M.findWithDefault [] (itemIdentifier item) tagMap
+    getContent item = do
+        let path = toFilePath (itemIdentifier item)
+        content <- unsafeCompiler $ readFile path
+        return $ escapeHtml content
+    escapeHtml = concatMap escapeChar
+    escapeChar '<' = "&lt;"
+    escapeChar '>' = "&gt;"
+    escapeChar '&' = "&amp;"
+    escapeChar '"' = "&quot;"
+    escapeChar '\n' = " "
+    escapeChar c = [c]
 
 -- | Sort items by date, handling both regular posts and archive posts
 recentFirst' :: [Item a] -> Compiler [Item a]
@@ -393,6 +405,7 @@ diaryEntryCtx =
     field "date" extractDate `mappend`
     field "title" extractTitleFromContent `mappend`
     field "wordcount" wordCount `mappend`
+    field "content" getContent `mappend`
     constField "tags" ""       `mappend`
     defaultContext
   where
@@ -400,6 +413,17 @@ diaryEntryCtx =
     stripTags [] = []
     stripTags ('<':xs) = stripTags $ drop 1 $ dropWhile (/= '>') xs
     stripTags (x:xs) = x : stripTags xs
+    getContent item = do
+        let path = toFilePath (itemIdentifier item)
+        content <- unsafeCompiler $ readFile path
+        return $ escapeHtml content
+    escapeHtml = concatMap escapeChar
+    escapeChar '<' = "&lt;"
+    escapeChar '>' = "&gt;"
+    escapeChar '&' = "&amp;"
+    escapeChar '"' = "&quot;"
+    escapeChar '\n' = " "
+    escapeChar c = [c]
 
     extractDate item = do
         let path = toFilePath (itemIdentifier item)
@@ -438,6 +462,7 @@ memoirsEntryCtx =
     field "date" extractDate `mappend`
     field "title" extractTitleFromContent `mappend`
     field "wordcount" wordCount `mappend`
+    field "content" getContent `mappend`
     constField "tags" ""       `mappend`
     defaultContext
   where
@@ -445,6 +470,17 @@ memoirsEntryCtx =
     stripTags [] = []
     stripTags ('<':xs) = stripTags $ drop 1 $ dropWhile (/= '>') xs
     stripTags (x:xs) = x : stripTags xs
+    getContent item = do
+        let path = toFilePath (itemIdentifier item)
+        content <- unsafeCompiler $ readFile path
+        return $ escapeHtml content
+    escapeHtml = concatMap escapeChar
+    escapeChar '<' = "&lt;"
+    escapeChar '>' = "&gt;"
+    escapeChar '&' = "&amp;"
+    escapeChar '"' = "&quot;"
+    escapeChar '\n' = " "
+    escapeChar c = [c]
 
     extractDate item = do
         let path = toFilePath (itemIdentifier item)
@@ -492,9 +528,21 @@ noteCtx =
 noteCtxWithTagsF :: M.Map Identifier [String] -> Context String
 noteCtxWithTagsF tagMap =
     field "tags" getTags `mappend`
+    field "content" getContent `mappend`
     noteCtx
   where
     getTags item = return $ unwords $ M.findWithDefault [] (itemIdentifier item) tagMap
+    getContent item = do
+        let path = toFilePath (itemIdentifier item)
+        content <- unsafeCompiler $ readFile path
+        return $ escapeHtml content
+    escapeHtml = concatMap escapeChar
+    escapeChar '<' = "&lt;"
+    escapeChar '>' = "&gt;"
+    escapeChar '&' = "&amp;"
+    escapeChar '"' = "&quot;"
+    escapeChar '\n' = " "
+    escapeChar c = [c]
 
 txtCompiler :: LinkMap -> Compiler (Item String)
 txtCompiler linkMap = do
