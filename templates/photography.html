@@ -20,6 +20,24 @@
             <a href="/about.html">About</a>
         </nav>
     </header>
+    <script>
+    (function() {
+        var path = window.location.pathname;
+        var links = document.querySelectorAll('nav a');
+        for (var i = 0; i < links.length; i++) {
+            var href = links[i].getAttribute('href');
+            var hrefBase = href.replace('.html', '');
+            if (hrefBase.charAt(hrefBase.length - 1) === '/') {
+                hrefBase = hrefBase.slice(0, -1);
+            }
+            if (href === '/' && path === '/') {
+                links[i].classList.add('active');
+            } else if (href !== '/' && path.indexOf(hrefBase) === 0) {
+                links[i].classList.add('active');
+            }
+        }
+    })();
+    </script>
 
     <main>
         <h1>$title$</h1>

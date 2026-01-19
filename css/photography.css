@@ -57,6 +57,11 @@ body.photography nav a:hover {
     color: #ffffff;
 }
 
+body.photography nav a.active {
+    font-weight: bold;
+    color: #e8e8e8;
+}
+
 body.photography a {
     color: #b0b0b0;
 }
