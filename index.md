@@ -9,8 +9,8 @@ machines/typewriter_bw.webp
 
 - [Blog](/blog.html) - Articles and posts
 - [Photography](/photography/) - Photo gallery
-- [Music](/music) - Some compositions
-- [Art](/art)
+- [Music](/music/) - Some compositions
+- [Art](/art/)
 - [Code](/projects.html) - Software projects and experiments
 - [About](/about.html) 
 
