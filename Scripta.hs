@@ -38,9 +38,16 @@ spanCodeFence (line:rest)
 
 -- | Process inline Scripta elements in a line
 -- Syntax: [prog TITLE FILENAME], [ilink ID], [ilink ID "text"], [i text], [b text], [par]
+-- Backtick-delimited code spans are passed through verbatim
 processInline :: LinkMap -> String -> String
 processInline _ [] = []
 processInline linkMap s@(c:cs)
+    | c == '`' =
+        -- Inline code: pass through verbatim until closing backtick
+        let (code, rest) = break (== '`') cs
+        in case rest of
+            ('`':remaining) -> c : code ++ "`" ++ processInline linkMap remaining
+            _ -> c : processInline linkMap cs  -- No closing backtick, continue
     | c == '[' =
         case parseInlineElement linkMap s of
             Just (html, rest) -> html ++ processInline linkMap rest
