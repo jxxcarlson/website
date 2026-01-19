@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>$title$ - My Site</title>
+    <link rel="stylesheet" href="/css/default.css">
+    <style>
+        body {
+            background-color: #3a3632;
+            color: #e8e4df;
+        }
+        header {
+            border-bottom-color: #524d47;
+        }
+        nav a {
+            color: #c4beb6;
+        }
+        nav a:hover {
+            color: #ffffff;
+        }
+        a {
+            color: #d4cec6;
+        }
+        a:hover {
+            color: #ffffff;
+        }
+        footer {
+            border-top-color: #524d47;
+            color: #9a948c;
+        }
+        h1, h2, h3 {
+            color: #f0ece6;
+        }
+        figcaption {
+            color: #b0aaa2;
+        }
+        /* Slideshow styles */
+        .slideshow {
+            text-align: center;
+            margin: 0 0 2rem 0;
+        }
+        .slide {
+            display: none;
+        }
+        .slide.active {
+            display: block;
+        }
+        .slide img {
+            max-width: 100%;
+            height: auto;
+        }
+        .slide-caption {
+            font-size: 0.9em;
+            color: #b0aaa2;
+            margin-top: 0.5rem;
+        }
+        .slideshow-controls {
+            margin-top: 1rem;
+            display: flex;
+            flex-wrap: nowrap;
+            justify-content: center;
+            align-items: baseline;
+            gap: 0.3rem;
+        }
+        .slide-btn {
+            background: #524d47;
+            border: none;
+            color: #d4cec6;
+            font-size: 0.9rem;
+            padding: 0.25rem 0.5rem;
+            cursor: pointer;
+            border-radius: 3px;
+            transition: background 0.2s, color 0.2s;
+            line-height: 1;
+        }
+        .slide-btn:hover {
+            background: #6a635b;
+            color: #fff;
+        }
+        .slide-counter {
+            color: #9a948c;
+            font-size: 0.85rem;
+            min-width: 3rem;
+            text-align: center;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="/">Home</a>
+            <a href="/blog.html">Blog</a>
+            <a href="/photography/">Photography</a>
+            <a href="/art/">Art</a>
+            <a href="/music/">Music</a>
+            <a href="/projects.html">Code</a>
+            <a href="/about.html">About</a>
+        </nav>
+    </header>
+
+    <main>
+        <h1>$title$</h1>
+        $body$
+    </main>
+
+    <footer>
+    </footer>
+</body>
+</html>

@@ -58,7 +58,8 @@ simulations/brownian_motion.webp
 - [prog "Brownian Motion" brownian_motion.html],  [Code](https://github.com/jxxcarlson/brownianMotion.elm)
 
 
-## Just for fun
+##
+Just for fun
 - [Fake Drum Language App](https://jxxcarlson.github.io/app/drumlanguage.html)
 
 

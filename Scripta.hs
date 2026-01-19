@@ -275,19 +275,24 @@ splitOn delim s =
         (_:xs) -> splitOn delim xs
 
 -- | Render a normal inline image
--- Props: width, caption, float (left/right for text wrapping), ilink (clickable link URL)
+-- Args: expandable (click opens image in new tab)
+-- Props: width, height, caption, float (left/right for text wrapping), ilink (clickable link URL)
 renderNormalImage :: String -> Block -> [String]
 renderNormalImage imgPath block =
     let width = getProp "width" block
+        height = getProp "height" block
         caption = getProp "caption" block
         floatDir = getProp "float" block
         imageLink = getProp "ilink" block
+        isExpandable = hasArg "expandable" block
         widthAttr = maybe "" (\w -> " width=\"" ++ w ++ "\"") width
+        heightAttr = maybe "" (\h -> " height=\"" ++ h ++ "\"") height
         altText = fromMaybe (takeFileName imgPath) caption
-        imgTag = "<img src=\"" ++ imgPath ++ "\"" ++ widthAttr ++ " alt=\"" ++ altText ++ "\">"
-        -- Wrap in link if ilink property is present
+        imgTag = "<img src=\"" ++ imgPath ++ "\"" ++ widthAttr ++ heightAttr ++ " alt=\"" ++ altText ++ "\">"
+        -- Wrap in link: ilink takes priority, then expandable (opens in new window), then no link
         linkedImg = case imageLink of
             Just url -> "<a href=\"" ++ url ++ "\">" ++ imgTag ++ "</a>"
+            Nothing | isExpandable -> "<a href=\"" ++ imgPath ++ "\" onclick=\"window.open(this.href, '_blank', 'menubar=no,toolbar=no,location=no'); return false;\">" ++ imgTag ++ "</a>"
             Nothing  -> imgTag
         -- Float styling with margin for text spacing
         floatStyle = case floatDir of
@@ -456,12 +461,20 @@ isInfixOf needle haystack = any (isPrefixOf needle) (tails haystack)
 
 -- | Render a slideshow block
 -- Content lines: path/to/image.png | Caption text
+-- Args: expandable (click opens image in new tab)
+-- Props: width, height (use one or both to constrain image size)
 renderSlideshow :: Block -> [String]
 renderSlideshow block =
     let slides = parseSlides (blockContent block)
-        width = fromMaybe "600" (getProp "width" block)
+        width = getProp "width" block
+        height = getProp "height" block
+        isExpandable = hasArg "expandable" block
+        -- Default to width:600 if neither specified
+        (finalWidth, finalHeight) = case (width, height) of
+            (Nothing, Nothing) -> (Just "600", Nothing)
+            _ -> (width, height)
         total = length slides
-        slideHtml = concatMap (renderSlide width) (zip [0..] slides)
+        slideHtml = concatMap (renderSlide finalWidth finalHeight isExpandable) (zip [0..] slides)
     in [ "<div class=\"slideshow\" data-total=\"" ++ show total ++ "\">" ]
        ++ slideHtml
        ++ [ "<div class=\"slideshow-controls\">"
@@ -501,13 +514,23 @@ parseSlides = map parseSlideLine . filter (not . all isSpace)
             (path, _) -> (trim path, Nothing)
 
 -- | Render a single slide
-renderSlide :: String -> (Int, (String, Maybe String)) -> [String]
-renderSlide width (idx, (path, caption)) =
+renderSlide :: Maybe String -> Maybe String -> Bool -> (Int, (String, Maybe String)) -> [String]
+renderSlide width height expandable (idx, (path, caption)) =
     let imgPath = "/media/images/" ++ path
         activeClass = if idx == 0 then " active" else ""
+        -- Use inline style for dimensions to override CSS
+        styleAttr = case (width, height) of
+            (Just w, Just h) -> " style=\"width: " ++ w ++ "px; height: " ++ h ++ "px;\""
+            (Just w, Nothing) -> " style=\"width: " ++ w ++ "px;\""
+            (Nothing, Just h) -> " style=\"height: " ++ h ++ "px;\""
+            (Nothing, Nothing) -> ""
+        imgTag = "<img src=\"" ++ imgPath ++ "\"" ++ styleAttr ++ ">"
+        linkedImg = if expandable
+                    then "<a href=\"" ++ imgPath ++ "\" onclick=\"window.open(this.href, '_blank', 'menubar=no,toolbar=no,location=no'); return false;\">" ++ imgTag ++ "</a>"
+                    else imgTag
         captionHtml = maybe "" (\c -> "<div class=\"slide-caption\">" ++ c ++ "</div>") caption
     in [ "<div class=\"slide" ++ activeClass ++ "\" data-index=\"" ++ show idx ++ "\">"
-       , "<img src=\"" ++ imgPath ++ "\" width=\"" ++ width ++ "\">"
+       , linkedImg
        , captionHtml
        , "</div>"
        ]

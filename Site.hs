@@ -80,6 +80,12 @@ main = do
                 >>= loadAndApplyTemplate "templates/default.html" defaultContext
                 >>= relativizeUrls
 
+        match "art/**" $ do
+            route $ setExtension "html"
+            compile $ scriptaCompiler linkMap
+                >>= loadAndApplyTemplate "templates/art.html" defaultContext
+                >>= relativizeUrls
+
         -- Archive notes that are posts (contain #post tag)
         match (fromList postFiles) $ do
             route $ customRoute (archiveToPostRoute postMap)
