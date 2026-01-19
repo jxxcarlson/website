@@ -23,6 +23,11 @@
 .tag-btn.active:hover {
     background: #0055aa;
 }
+.doc-count {
+    font-size: 0.85rem;
+    color: #888;
+    margin-left: 0.5rem;
+}
 </style>
 
 <div class="tag-filters">
@@ -30,6 +35,7 @@
     $for(tagList)$
     <button class="tag-btn" data-tag="$tag$">$tag$</button>
     $endfor$
+    <span class="doc-count"></span>
 </div>
 
 <ul id="notes-list">
@@ -41,6 +47,10 @@
 </ul>
 
 <script>
+function updateCount() {
+    const visible = document.querySelectorAll('#notes-list li:not([style*="display: none"])').length;
+    document.querySelector('.doc-count').textContent = visible + (visible === 1 ? ' note' : ' notes');
+}
 document.querySelectorAll('.tag-btn').forEach(btn => {
     btn.addEventListener('click', function() {
         const tag = this.dataset.tag;
@@ -54,6 +64,8 @@ document.querySelectorAll('.tag-btn').forEach(btn => {
                 li.style.display = 'none';
             }
         });
+        updateCount();
     });
 });
+updateCount();
 </script>

@@ -7,6 +7,7 @@ machines/typewriter_bw.webp
 
 | vspace 1
 
+- [Notes](/notes/) - Reference notes
 - [Blog](/blog.html) - Articles and posts
 - [Photography](/photography/) - Photo gallery
 - [Music](/music/) - Some compositions
