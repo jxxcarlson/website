@@ -218,3 +218,21 @@ figcaption {
     color: #666;
     margin-top: 0.15rem;
 }
+
+/* Equation blocks (LaTeX math) */
+.equation {
+    margin: 1.5rem 0;
+    text-align: center;
+    overflow-x: auto;
+}
+
+/* Theorem blocks */
+.theorem {
+    margin: 1.5rem 0;
+    font-style: italic;
+}
+
+.theorem-label {
+    font-weight: bold;
+    font-style: normal;
+}

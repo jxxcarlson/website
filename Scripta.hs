@@ -17,11 +17,24 @@ processScripta linkMap = unlines . processLines linkMap . lines
 processLines :: LinkMap -> [String] -> [String]
 processLines _ [] = []
 processLines linkMap (line:rest)
+    | "```" `isPrefixOf` line =
+        -- Code fence: pass through verbatim until closing ```
+        let (codeLines, remaining) = spanCodeFence rest
+        in line : codeLines ++ processLines linkMap remaining
     | "| " `isPrefixOf` line =
         let (blockLines, remaining) = spanBlock rest
             block = parseBlock line blockLines
         in renderBlock block ++ processLines linkMap remaining
     | otherwise = processInline linkMap line : processLines linkMap rest
+
+-- | Collect lines inside a code fence until closing ```
+spanCodeFence :: [String] -> ([String], [String])
+spanCodeFence [] = ([], [])
+spanCodeFence (line:rest)
+    | "```" `isPrefixOf` line = ([line], rest)  -- Include closing fence
+    | otherwise =
+        let (more, remaining) = spanCodeFence rest
+        in (line : more, remaining)
 
 -- | Process inline Scripta elements in a line
 -- Syntax: [prog TITLE FILENAME], [ilink ID], [ilink ID "text"]
@@ -191,6 +204,8 @@ renderBlock block = case blockType block of
     "video"     -> renderVideo block
     "center"    -> renderCenter block
     "vspace"    -> renderVspace block
+    "equation"  -> renderEquation block
+    "theorem"   -> renderTheorem block
     "hide"      -> []  -- Hidden content, renders nothing
     _ -> ["<!-- Unknown Scripta block: " ++ blockType block ++ " -->"]
 
@@ -208,6 +223,35 @@ renderVspace block =
             (n:_) -> n
             [] -> "0"
     in ["<div style=\"height: " ++ pixels ++ "px;\"></div>"]
+
+-- | Render an equation block (LaTeX display math)
+-- Syntax: | equation
+--         \int_0^{\infty} e^{-x^2} dx = \frac{\sqrt{\pi}}{2}
+-- Renders as display-mode LaTeX equation using KaTeX
+renderEquation :: Block -> [String]
+renderEquation block =
+    let latex = unlines (blockContent block)
+    in [ "<div class=\"equation\">"
+       , "$$"
+       , trim latex
+       , "$$"
+       , "</div>"
+       ]
+
+-- | Render a theorem block
+-- Syntax: | theorem (Euclid)
+--         There are infinitely many prime numbers
+-- The argument (e.g., "Euclid" or "(Euclid)") is optional
+renderTheorem :: Block -> [String]
+renderTheorem block =
+    let name = case blockArgs block of
+            (n:_) -> " " ++ n
+            [] -> ""
+        content = unlines (blockContent block)
+    in [ "<div class=\"theorem\">"
+       , "<span class=\"theorem-label\">Theorem" ++ name ++ ".</span> " ++ trim content
+       , "</div>"
+       ]
 
 -- | Render an image block
 -- Args: background (makes it a background image)

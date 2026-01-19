@@ -6,7 +6,7 @@ title: Photography
 Some photos ...
 
 | image display:row width:200 
-nyc/spriral_stairs_IMG_1804.webp, music/IMG_3002.webp, plants/Cone_Flowers_IMG_0254.webp
+nyc/spriral_stairs_IMG_1804.webp, music/jazz_harlem_IMG_3002.webp, plants/Cone_Flowers_IMG_0254.webp
 
 
 [New York City](nyc.html) I love this city.  Walk five blocks in any direction,
