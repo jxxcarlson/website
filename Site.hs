@@ -10,7 +10,7 @@ import Scripta (processScripta, LinkMap)
 import System.Directory (listDirectory, doesDirectoryExist)
 import System.FilePath ((</>), takeExtension, takeBaseName)
 import Control.Monad (filterM, forM)
-import Data.List (isPrefixOf, isInfixOf, find, dropWhileEnd, sortBy)
+import Data.List (isPrefixOf, isInfixOf, find, dropWhileEnd, sortBy, sort)
 import Data.Char (isSpace)
 import Data.Maybe (catMaybes, mapMaybe)
 
@@ -23,6 +23,11 @@ main = do
     let postFiles = M.keys postMap
         diaryFiles = M.keys diaryMap
         memoirsFiles = M.keys memoirsMap
+
+    -- Scan posts for content tags (#tag:xyz)
+    postTagMap <- scanArchiveForContentTags "archive" postFiles
+    let tagIndex = buildTagIndex postTagMap
+        allTags = sort $ M.keys tagIndex
 
     -- Build the link map for internal links
     linkMap <- buildLinkMap "archive" postMap diaryMap memoirsMap
@@ -146,8 +151,10 @@ main = do
             compile $ do
                 entries <- loadAll (fromList diaryFiles)
                 sortedEntries <- recentFirst' entries
-                let diaryIndexCtx =
+                let emptyTagCtx = field "tag" (return . itemBody)
+                    diaryIndexCtx =
                         listField "posts" diaryEntryCtx (return sortedEntries) `mappend`
+                        listField "tagList" emptyTagCtx (return [])            `mappend`
                         constField "title" "Diary"                             `mappend`
                         defaultContext
 
@@ -162,8 +169,10 @@ main = do
             compile $ do
                 entries <- loadAll (fromList memoirsFiles)
                 sortedEntries <- recentFirst' entries
-                let memoirsIndexCtx =
+                let emptyTagCtx = field "tag" (return . itemBody)
+                    memoirsIndexCtx =
                         listField "posts" memoirsEntryCtx (return sortedEntries) `mappend`
+                        listField "tagList" emptyTagCtx (return [])              `mappend`
                         constField "title" "Memoirs"                             `mappend`
                         defaultContext
 
@@ -195,8 +204,13 @@ main = do
                 archivePosts <- loadAll (fromList postFiles)
                 let allPosts = regularPosts ++ archivePosts
                 sortedPosts <- recentFirst' allPosts
-                let blogCtx =
-                        listField "posts" combinedPostCtx (return sortedPosts) `mappend`
+                -- Create tag list items for buttons
+                tagItems <- mapM makeItem allTags
+                let tagCtx = field "tag" (return . itemBody)
+                    postCtxWithTags = combinedPostCtxWithTags postTagMap
+                    blogCtx =
+                        listField "posts" postCtxWithTags (return sortedPosts) `mappend`
+                        listField "tagList" tagCtx (return tagItems)           `mappend`
                         constField "title" "Blog"                              `mappend`
                         defaultContext
 
@@ -299,6 +313,14 @@ combinedPostCtx =
             dayNum = dropWhile (== '0') day
         in monthName ++ " " ++ (if null dayNum then "0" else dayNum) ++ ", " ++ year
 
+-- | Combined context with tags field for blog page filtering
+combinedPostCtxWithTags :: M.Map Identifier [String] -> Context String
+combinedPostCtxWithTags tagMap =
+    field "tags" getTags `mappend`
+    combinedPostCtx
+  where
+    getTags item = return $ unwords $ M.findWithDefault [] (itemIdentifier item) tagMap
+
 -- | Sort items by date, handling both regular posts and archive posts
 recentFirst' :: [Item a] -> Compiler [Item a]
 recentFirst' items = return $ sortBy (flip compareByDate) items
@@ -362,6 +384,7 @@ diaryEntryCtx =
     field "date" extractDate `mappend`
     field "title" extractTitleFromContent `mappend`
     field "wordcount" wordCount `mappend`
+    constField "tags" ""       `mappend`
     defaultContext
   where
     wordCount item = return $ show $ length $ words $ stripTags $ itemBody item
@@ -406,6 +429,7 @@ memoirsEntryCtx =
     field "date" extractDate `mappend`
     field "title" extractTitleFromContent `mappend`
     field "wordcount" wordCount `mappend`
+    constField "tags" ""       `mappend`
     defaultContext
   where
     wordCount item = return $ show $ length $ words $ stripTags $ itemBody item
@@ -613,6 +637,37 @@ hasTag :: String -> String -> Bool
 hasTag tag content = any isTagLine (lines content)
   where
     isTagLine line = tag `isPrefixOf` (dropWhile isSpace line)
+
+-- | Extract all #tag:xyz tags from content
+-- Returns list of tag names (the part after #tag:)
+-- Finds #tag: anywhere in the content, not just at line start
+extractContentTags :: String -> [String]
+extractContentTags content = findTags content
+  where
+    findTags [] = []
+    findTags s@(_:rest)
+        | "#tag:" `isPrefixOf` s =
+            let tag = takeWhile (\c -> not (isSpace c) && c /= '\n') (drop 5 s)
+            in tag : findTags (drop (5 + length tag) s)
+        | otherwise = findTags rest
+
+-- | Scan archive posts for content tags
+-- Returns a map of Identifier -> [tag names]
+scanArchiveForContentTags :: FilePath -> [Identifier] -> IO (M.Map Identifier [String])
+scanArchiveForContentTags dir postIdents = do
+    results <- forM postIdents $ \ident -> do
+        let path = toFilePath ident
+        content <- readFile path
+        let tags = extractContentTags content
+        return (ident, tags)
+    return $ M.fromList results
+
+-- | Build reverse index: tag name -> list of identifiers with that tag
+buildTagIndex :: M.Map Identifier [String] -> M.Map String [Identifier]
+buildTagIndex tagMap = M.foldrWithKey addTags M.empty tagMap
+  where
+    addTags ident tags acc = foldr (addTag ident) acc tags
+    addTag ident tag acc = M.insertWith (++) tag [ident] acc
 
 -- | Convert archive path to diary path using title-based slug
 -- archive/202601162353.txt -> diary/us-situation-fubar.html

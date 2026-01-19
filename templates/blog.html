@@ -50,13 +50,63 @@ body::after {
 }
 </style>
 
-<p>Recent posts:</p>
+<style>
+.tag-filters {
+    margin-bottom: 1rem;
+}
+.tag-btn {
+    background: #eee;
+    border: 1px solid #ccc;
+    padding: 0.25rem 0.5rem;
+    margin-right: 0.25rem;
+    margin-bottom: 0.25rem;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 0.9rem;
+}
+.tag-btn.active {
+    background: #0066cc;
+    color: white;
+    border-color: #0066cc;
+}
+.tag-btn:hover {
+    background: #ddd;
+}
+.tag-btn.active:hover {
+    background: #0055aa;
+}
+</style>
 
-<ul>
+<div class="tag-filters">
+    <button class="tag-btn active" data-tag="all">all</button>
+    $for(tagList)$
+    <button class="tag-btn" data-tag="$tag$">$tag$</button>
+    $endfor$
+</div>
+
+<ul id="post-list">
     $for(posts)$
-        <li>
+        <li data-tags="$tags$">
             <span class="post-date">$date$</span> &mdash;
             <a href="$url$">$title$</a>
         </li>
     $endfor$
 </ul>
+
+<script>
+document.querySelectorAll('.tag-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const tag = this.dataset.tag;
+        document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+        document.querySelectorAll('#post-list li').forEach(li => {
+            const tags = li.dataset.tags ? li.dataset.tags.split(' ') : [];
+            if (tag === 'all' || tags.includes(tag)) {
+                li.style.display = '';
+            } else {
+                li.style.display = 'none';
+            }
+        });
+    });
+});
+</script>
