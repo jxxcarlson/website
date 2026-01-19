@@ -29,6 +29,25 @@ body::after {
   z-index: -1;
   pointer-events: none;
 }
+/* Tablet: shrink sidebars */
+@media (max-width: 1024px) {
+  body::before {
+    left: 75%;
+    width: 25%;
+    opacity: 0.7;
+  }
+  body::after {
+    width: 10%;
+    opacity: 0.5;
+  }
+}
+/* Mobile: hide sidebars completely */
+@media (max-width: 768px) {
+  body::before,
+  body::after {
+    display: none;
+  }
+}
 </style>
 
 <p>Recent posts:</p>
