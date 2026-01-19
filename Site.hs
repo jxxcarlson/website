@@ -14,6 +14,61 @@ import Data.List (isPrefixOf, isInfixOf, find, dropWhileEnd, sortBy, sort)
 import Data.Char (isSpace)
 import Data.Maybe (catMaybes, mapMaybe)
 
+-- | Escape HTML special characters for use in data attributes
+escapeHtmlAttr :: String -> String
+escapeHtmlAttr = concatMap escapeChar
+  where
+    escapeChar '<' = "&lt;"
+    escapeChar '>' = "&gt;"
+    escapeChar '&' = "&amp;"
+    escapeChar '"' = "&quot;"
+    escapeChar '\n' = " "
+    escapeChar c = [c]
+
+-- | Strip HTML tags from content
+stripHtmlTags :: String -> String
+stripHtmlTags [] = []
+stripHtmlTags ('<':xs) = stripHtmlTags $ drop 1 $ dropWhile (/= '>') xs
+stripHtmlTags (x:xs) = x : stripHtmlTags xs
+
+-- | Convert month number to name
+monthName :: String -> String
+monthName "01" = "January";  monthName "02" = "February"; monthName "03" = "March"
+monthName "04" = "April";    monthName "05" = "May";      monthName "06" = "June"
+monthName "07" = "July";     monthName "08" = "August";   monthName "09" = "September"
+monthName "10" = "October";  monthName "11" = "November"; monthName "12" = "December"
+monthName m = m
+
+-- | Extract base filename without extension
+takeBaseName' :: FilePath -> String
+takeBaseName' p = reverse $ drop 1 $ dropWhile (/= '.') $ reverse $
+                  reverse $ takeWhile (/= '/') $ reverse p
+
+-- | Format date from Zettelkasten ID (YYYYMMDD...)
+formatZettelDate :: String -> String
+formatZettelDate filename =
+    let zettelId = take 8 filename
+        year = take 4 zettelId
+        month = take 2 (drop 4 zettelId)
+        day = take 2 (drop 6 zettelId)
+        dayNum = dropWhile (== '0') day
+    in monthName month ++ " " ++ (if null dayNum then "0" else dayNum) ++ ", " ++ year
+
+-- | Extract title from first line of content
+extractFirstLineTitle :: String -> String
+extractFirstLineTitle content =
+    let contentLines = lines content
+    in if not (null contentLines) && not (null (head contentLines))
+       then head contentLines
+       else "Untitled"
+
+-- | Generic route for archive entries: prefix/slug.html
+archiveToRoute :: String -> M.Map Identifier String -> Identifier -> FilePath
+archiveToRoute prefix titleMap ident =
+    let title = M.findWithDefault "untitled" ident titleMap
+        slug = toSlug title
+    in prefix </> slug ++ ".html"
+
 main :: IO ()
 main = do
     -- Pre-scan archive files for #post, #diary, #memoirs, and #note tags
@@ -251,10 +306,7 @@ postCtx =
     field "wordcount" wordCount `mappend`
     defaultContext
   where
-    wordCount item = return $ show $ length $ words $ stripTags $ itemBody item
-    stripTags [] = []
-    stripTags ('<':xs) = stripTags $ drop 1 $ dropWhile (/= '>') xs
-    stripTags (x:xs) = x : stripTags xs
+    wordCount item = return $ show $ length $ words $ stripHtmlTags $ itemBody item
 
 -- | Combined context that works for both regular posts and archive posts
 combinedPostCtx :: Context String
@@ -333,14 +385,7 @@ combinedPostCtxWithTags tagMap =
     getContent item = do
         let path = toFilePath (itemIdentifier item)
         content <- unsafeCompiler $ readFile path
-        return $ escapeHtml content
-    escapeHtml = concatMap escapeChar
-    escapeChar '<' = "&lt;"
-    escapeChar '>' = "&gt;"
-    escapeChar '&' = "&amp;"
-    escapeChar '"' = "&quot;"
-    escapeChar '\n' = " "
-    escapeChar c = [c]
+        return $ escapeHtmlAttr content
 
 -- | Sort items by date, handling both regular posts and archive posts
 recentFirst' :: [Item a] -> Compiler [Item a]
@@ -363,152 +408,41 @@ archivePostCtx =
     field "wordcount" wordCount `mappend`
     defaultContext
   where
-    wordCount item = return $ show $ length $ words $ stripTags $ itemBody item
-    stripTags [] = []
-    stripTags ('<':xs) = stripTags $ drop 1 $ dropWhile (/= '>') xs
-    stripTags (x:xs) = x : stripTags xs
-
-    extractDate item = do
-        let path = toFilePath (itemIdentifier item)
-            filename = takeBaseName' path
-            -- Extract YYYYMMDD from Zettelkasten ID
-            zettelId = take 8 filename
-            year = take 4 zettelId
-            month = take 2 (drop 4 zettelId)
-            day = take 2 (drop 6 zettelId)
-            monthName = case month of
-                "01" -> "January"; "02" -> "February"; "03" -> "March"
-                "04" -> "April"; "05" -> "May"; "06" -> "June"
-                "07" -> "July"; "08" -> "August"; "09" -> "September"
-                "10" -> "October"; "11" -> "November"; "12" -> "December"
-                _ -> month
-            dayNum = dropWhile (== '0') day
-        return $ monthName ++ " " ++ (if null dayNum then "0" else dayNum) ++ ", " ++ year
-
+    wordCount item = return $ show $ length $ words $ stripHtmlTags $ itemBody item
+    extractDate item = return $ formatZettelDate $ takeBaseName' $ toFilePath (itemIdentifier item)
     extractTitle item = do
         let path = toFilePath (itemIdentifier item)
         content <- unsafeCompiler $ readFile path
-        let contentLines = lines content
-            title = if not (null contentLines)
-                    then head contentLines
-                    else "Untitled"
-        return $ if null title then "Untitled" else title
+        return $ extractFirstLineTitle content
 
-    takeBaseName' p = reverse $ drop 1 $ dropWhile (/= '.') $ reverse $
-                      reverse $ takeWhile (/= '/') $ reverse p
+-- | Context for archive entries (diary, memoirs, etc.)
+-- Extracts title from first line of content, date from Zettelkasten ID in filename
+archiveEntryCtx :: Context String
+archiveEntryCtx =
+    field "date" extractDate `mappend`
+    field "title" extractTitle `mappend`
+    field "wordcount" wordCount `mappend`
+    field "content" getContent `mappend`
+    constField "tags" ""       `mappend`
+    defaultContext
+  where
+    wordCount item = return $ show $ length $ words $ stripHtmlTags $ itemBody item
+    getContent item = do
+        let path = toFilePath (itemIdentifier item)
+        content <- unsafeCompiler $ readFile path
+        return $ escapeHtmlAttr content
+    extractDate item = return $ formatZettelDate $ takeBaseName' $ toFilePath (itemIdentifier item)
+    extractTitle item = do
+        let path = toFilePath (itemIdentifier item)
+        content <- unsafeCompiler $ readFile path
+        return $ extractFirstLineTitle content
 
--- | Context for diary entries
--- Extracts title from first line of content (e.g., "# 202601162353 My Title" -> "My Title")
--- Extracts date from Zettelkasten ID in filename
+-- | Aliases for backward compatibility
 diaryEntryCtx :: Context String
-diaryEntryCtx =
-    field "date" extractDate `mappend`
-    field "title" extractTitleFromContent `mappend`
-    field "wordcount" wordCount `mappend`
-    field "content" getContent `mappend`
-    constField "tags" ""       `mappend`
-    defaultContext
-  where
-    wordCount item = return $ show $ length $ words $ stripTags $ itemBody item
-    stripTags [] = []
-    stripTags ('<':xs) = stripTags $ drop 1 $ dropWhile (/= '>') xs
-    stripTags (x:xs) = x : stripTags xs
-    getContent item = do
-        let path = toFilePath (itemIdentifier item)
-        content <- unsafeCompiler $ readFile path
-        return $ escapeHtml content
-    escapeHtml = concatMap escapeChar
-    escapeChar '<' = "&lt;"
-    escapeChar '>' = "&gt;"
-    escapeChar '&' = "&amp;"
-    escapeChar '"' = "&quot;"
-    escapeChar '\n' = " "
-    escapeChar c = [c]
+diaryEntryCtx = archiveEntryCtx
 
-    extractDate item = do
-        let path = toFilePath (itemIdentifier item)
-            filename = takeBaseName' path
-            zettelId = take 8 filename
-            year = take 4 zettelId
-            month = take 2 (drop 4 zettelId)
-            day = take 2 (drop 6 zettelId)
-            monthName = case month of
-                "01" -> "January"; "02" -> "February"; "03" -> "March"
-                "04" -> "April"; "05" -> "May"; "06" -> "June"
-                "07" -> "July"; "08" -> "August"; "09" -> "September"
-                "10" -> "October"; "11" -> "November"; "12" -> "December"
-                _ -> month
-            dayNum = dropWhile (== '0') day
-        return $ monthName ++ " " ++ (if null dayNum then "0" else dayNum) ++ ", " ++ year
-
-    extractTitleFromContent item = do
-        let path = toFilePath (itemIdentifier item)
-        content <- unsafeCompiler $ readFile path
-        let contentLines = lines content
-            -- Title is on line 1
-            title = if not (null contentLines)
-                    then head contentLines
-                    else "Untitled"
-        return $ if null title then "Untitled" else title
-
-    takeBaseName' p = reverse $ drop 1 $ dropWhile (/= '.') $ reverse $
-                      reverse $ takeWhile (/= '/') $ reverse p
-
--- | Context for memoirs entries
--- Extracts title from first line of content
--- Extracts date from Zettelkasten ID in filename
 memoirsEntryCtx :: Context String
-memoirsEntryCtx =
-    field "date" extractDate `mappend`
-    field "title" extractTitleFromContent `mappend`
-    field "wordcount" wordCount `mappend`
-    field "content" getContent `mappend`
-    constField "tags" ""       `mappend`
-    defaultContext
-  where
-    wordCount item = return $ show $ length $ words $ stripTags $ itemBody item
-    stripTags [] = []
-    stripTags ('<':xs) = stripTags $ drop 1 $ dropWhile (/= '>') xs
-    stripTags (x:xs) = x : stripTags xs
-    getContent item = do
-        let path = toFilePath (itemIdentifier item)
-        content <- unsafeCompiler $ readFile path
-        return $ escapeHtml content
-    escapeHtml = concatMap escapeChar
-    escapeChar '<' = "&lt;"
-    escapeChar '>' = "&gt;"
-    escapeChar '&' = "&amp;"
-    escapeChar '"' = "&quot;"
-    escapeChar '\n' = " "
-    escapeChar c = [c]
-
-    extractDate item = do
-        let path = toFilePath (itemIdentifier item)
-            filename = takeBaseName' path
-            zettelId = take 8 filename
-            year = take 4 zettelId
-            month = take 2 (drop 4 zettelId)
-            day = take 2 (drop 6 zettelId)
-            monthName = case month of
-                "01" -> "January"; "02" -> "February"; "03" -> "March"
-                "04" -> "April"; "05" -> "May"; "06" -> "June"
-                "07" -> "July"; "08" -> "August"; "09" -> "September"
-                "10" -> "October"; "11" -> "November"; "12" -> "December"
-                _ -> month
-            dayNum = dropWhile (== '0') day
-        return $ monthName ++ " " ++ (if null dayNum then "0" else dayNum) ++ ", " ++ year
-
-    extractTitleFromContent item = do
-        let path = toFilePath (itemIdentifier item)
-        content <- unsafeCompiler $ readFile path
-        let contentLines = lines content
-            title = if not (null contentLines)
-                    then head contentLines
-                    else "Untitled"
-        return $ if null title then "Untitled" else title
-
-    takeBaseName' p = reverse $ drop 1 $ dropWhile (/= '.') $ reverse $
-                      reverse $ takeWhile (/= '/') $ reverse p
+memoirsEntryCtx = archiveEntryCtx
 
 noteCtx :: Context String
 noteCtx =
@@ -518,11 +452,7 @@ noteCtx =
     extractTitle item = do
         let path = toFilePath (itemIdentifier item)
         content <- unsafeCompiler $ readFile path
-        let contentLines = lines content
-            title = if not (null contentLines)
-                    then head contentLines
-                    else "Untitled"
-        return $ if null title then "Untitled" else title
+        return $ extractFirstLineTitle content
 
 -- | Note context with tags field for notes page filtering
 noteCtxWithTagsF :: M.Map Identifier [String] -> Context String
@@ -535,14 +465,7 @@ noteCtxWithTagsF tagMap =
     getContent item = do
         let path = toFilePath (itemIdentifier item)
         content <- unsafeCompiler $ readFile path
-        return $ escapeHtml content
-    escapeHtml = concatMap escapeChar
-    escapeChar '<' = "&lt;"
-    escapeChar '>' = "&gt;"
-    escapeChar '&' = "&amp;"
-    escapeChar '"' = "&quot;"
-    escapeChar '\n' = " "
-    escapeChar c = [c]
+        return $ escapeHtmlAttr content
 
 txtCompiler :: LinkMap -> Compiler (Item String)
 txtCompiler linkMap = do
@@ -719,21 +642,12 @@ buildTagIndex tagMap = M.foldrWithKey addTags M.empty tagMap
     addTags ident tags acc = foldr (addTag ident) acc tags
     addTag ident tag acc = M.insertWith (++) tag [ident] acc
 
--- | Convert archive path to diary path using title-based slug
--- archive/202601162353.txt -> diary/us-situation-fubar.html
+-- | Aliases using generic archiveToRoute
 archiveToDiaryRoute :: M.Map Identifier String -> Identifier -> FilePath
-archiveToDiaryRoute diaryMap ident =
-    let title = M.findWithDefault "untitled" ident diaryMap
-        slug = toSlug title
-    in "diary" </> slug ++ ".html"
+archiveToDiaryRoute = archiveToRoute "diary"
 
--- | Convert archive path to memoirs path using title-based slug
--- archive/202601162353.txt -> memoirs/my-memoir-title.html
 archiveToMemoirsRoute :: M.Map Identifier String -> Identifier -> FilePath
-archiveToMemoirsRoute memoirsMap ident =
-    let title = M.findWithDefault "untitled" ident memoirsMap
-        slug = toSlug title
-    in "memoirs" </> slug ++ ".html"
+archiveToMemoirsRoute = archiveToRoute "memoirs"
 
 -- | Build a map from Zettelkasten ID to (URL, Title) for internal links
 buildLinkMap :: FilePath
@@ -767,65 +681,39 @@ buildLinkMap dir postMap diaryMap memoirsMap = do
 
     return $ M.fromList $ catMaybes results
 
--- | Compiler for diary entries - strips first line (title) and #diary tags
+-- | Generic compiler for tagged archive entries - strips first line and specified tag
+txtTagCompiler :: String -> LinkMap -> Compiler (Item String)
+txtTagCompiler tag linkMap = do
+    body <- getResourceBody
+    let content = processScripta linkMap $ stripTagContent tag (itemBody body)
+        readerOpts = defaultHakyllReaderOptions
+            { readerExtensions = enableExtension Ext_tex_math_dollars $
+                                 enableExtension Ext_tex_math_double_backslash $
+                                 readerExtensions defaultHakyllReaderOptions
+            }
+        writerOpts = defaultHakyllWriterOptions
+            { writerHTMLMathMethod = MathJax "" }
+        result = runPure $ do
+            doc <- readMarkdown readerOpts (T.pack content)
+            writeHtml5String writerOpts doc
+    case result of
+        Left err -> fail $ show err
+        Right html -> makeItem (T.unpack html)
+
+-- | Strip first line (title) and specified tag from content
+stripTagContent :: String -> String -> String
+stripTagContent tag s =
+    let ls = lines s
+        withoutTitle = drop 1 ls
+        withoutTags = filter (not . hasTagPrefix) withoutTitle
+    in unlines withoutTags
+  where
+    hasTagPrefix line = tag `isPrefixOf` (dropWhile isSpace line)
+
+-- | Aliases for backward compatibility
 txtDiaryCompiler :: LinkMap -> Compiler (Item String)
-txtDiaryCompiler linkMap = do
-    body <- getResourceBody
-    let content = processScripta linkMap $ stripDiaryContent (itemBody body)
-        readerOpts = defaultHakyllReaderOptions
-            { readerExtensions = enableExtension Ext_tex_math_dollars $
-                                 enableExtension Ext_tex_math_double_backslash $
-                                 readerExtensions defaultHakyllReaderOptions
-            }
-        writerOpts = defaultHakyllWriterOptions
-            { writerHTMLMathMethod = MathJax "" }
-        result = runPure $ do
-            doc <- readMarkdown readerOpts (T.pack content)
-            writeHtml5String writerOpts doc
-    case result of
-        Left err -> fail $ show err
-        Right html -> makeItem (T.unpack html)
+txtDiaryCompiler = txtTagCompiler "#diary"
 
--- | Strip first line (title) and #diary tags from content
-stripDiaryContent :: String -> String
-stripDiaryContent s =
-    let ls = lines s
-        -- Drop the first line (title)
-        withoutTitle = drop 1 ls
-        -- Filter out #diary tags
-        withoutTags = filter (not . isDiaryTag) withoutTitle
-    in unlines withoutTags
-  where
-    isDiaryTag line = "#diary" `isPrefixOf` (dropWhile isSpace line)
-
--- | Compiler for memoirs entries - strips first line (title) and #memoirs tags
 txtMemoirsCompiler :: LinkMap -> Compiler (Item String)
-txtMemoirsCompiler linkMap = do
-    body <- getResourceBody
-    let content = processScripta linkMap $ stripMemoirsContent (itemBody body)
-        readerOpts = defaultHakyllReaderOptions
-            { readerExtensions = enableExtension Ext_tex_math_dollars $
-                                 enableExtension Ext_tex_math_double_backslash $
-                                 readerExtensions defaultHakyllReaderOptions
-            }
-        writerOpts = defaultHakyllWriterOptions
-            { writerHTMLMathMethod = MathJax "" }
-        result = runPure $ do
-            doc <- readMarkdown readerOpts (T.pack content)
-            writeHtml5String writerOpts doc
-    case result of
-        Left err -> fail $ show err
-        Right html -> makeItem (T.unpack html)
-
--- | Strip first line (title) and #memoirs tags from content
-stripMemoirsContent :: String -> String
-stripMemoirsContent s =
-    let ls = lines s
-        -- Drop the first line (title)
-        withoutTitle = drop 1 ls
-        -- Filter out #memoirs tags
-        withoutTags = filter (not . isMemoirsTag) withoutTitle
-    in unlines withoutTags
-  where
-    isMemoirsTag line = "#memoirs" `isPrefixOf` (dropWhile isSpace line)
+txtMemoirsCompiler = txtTagCompiler "#memoirs"
 
