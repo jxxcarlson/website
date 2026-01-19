@@ -37,7 +37,7 @@ spanCodeFence (line:rest)
         in (line : more, remaining)
 
 -- | Process inline Scripta elements in a line
--- Syntax: [prog TITLE FILENAME], [ilink ID], [ilink ID "text"]
+-- Syntax: [prog TITLE FILENAME], [ilink ID], [ilink ID "text"], [i text], [b text]
 processInline :: LinkMap -> String -> String
 processInline _ [] = []
 processInline linkMap s@(c:cs)
@@ -69,6 +69,10 @@ parseInlineElement linkMap s = do
             Just (renderInlineLink linkMap zettelId Nothing, rest)
         ["ilink", zettelId, customText] ->
             Just (renderInlineLink linkMap zettelId (Just customText), rest)
+        ("i":ws) | not (null ws) ->
+            Just ("<em>" ++ unwords ws ++ "</em>", rest)
+        ("b":ws) | not (null ws) ->
+            Just ("<strong>" ++ unwords ws ++ "</strong>", rest)
         _ -> Nothing
 
 -- | Parse words, treating quoted strings as single words
@@ -228,12 +232,17 @@ renderVspace block =
 -- Syntax: | equation
 --         \int_0^{\infty} e^{-x^2} dx = \frac{\sqrt{\pi}}{2}
 -- Renders as display-mode LaTeX equation using KaTeX
+-- If the body contains '&', wrap in aligned environment for multi-line equations
 renderEquation :: Block -> [String]
 renderEquation block =
-    let latex = unlines (blockContent block)
+    let latex = trim (unlines (blockContent block))
+        hasAlignment = '&' `elem` latex
+        body = if hasAlignment
+               then "\\begin{aligned}\n" ++ latex ++ "\n\\end{aligned}"
+               else latex
     in [ "<div class=\"equation\">"
        , "$$"
-       , trim latex
+       , body
        , "$$"
        , "</div>"
        ]
