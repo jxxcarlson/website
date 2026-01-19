@@ -238,8 +238,21 @@ figcaption {
 }
 
 /* Quotation blocks */
+.quotation-title {
+    margin-bottom: 0.25rem;
+}
+
 .quotation {
     margin: 1.5rem 0;
     margin-left: 2rem;
     font-style: italic;
+}
+
+.quotation-title + .quotation {
+    margin-top: 0;
+}
+
+/* Paragraph break element [par] */
+p.par {
+    margin: 0.25rem 0;
 }

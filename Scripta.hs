@@ -24,7 +24,7 @@ processLines linkMap (line:rest)
     | "| " `isPrefixOf` line =
         let (blockLines, remaining) = spanBlock rest
             block = parseBlock line blockLines
-        in renderBlock block ++ processLines linkMap remaining
+        in renderBlock linkMap block ++ processLines linkMap remaining
     | otherwise = processInline linkMap line : processLines linkMap rest
 
 -- | Collect lines inside a code fence until closing ```
@@ -37,7 +37,7 @@ spanCodeFence (line:rest)
         in (line : more, remaining)
 
 -- | Process inline Scripta elements in a line
--- Syntax: [prog TITLE FILENAME], [ilink ID], [ilink ID "text"], [i text], [b text]
+-- Syntax: [prog TITLE FILENAME], [ilink ID], [ilink ID "text"], [i text], [b text], [par]
 processInline :: LinkMap -> String -> String
 processInline _ [] = []
 processInline linkMap s@(c:cs)
@@ -73,6 +73,8 @@ parseInlineElement linkMap s = do
             Just ("<em>" ++ unwords ws ++ "</em>", rest)
         ("b":ws) | not (null ws) ->
             Just ("<strong>" ++ unwords ws ++ "</strong>", rest)
+        ["par"] ->
+            Just ("<p class=\"par\"></p>", rest)
         _ -> Nothing
 
 -- | Parse words, treating quoted strings as single words
@@ -198,26 +200,26 @@ getProp :: String -> Block -> Maybe String
 getProp key block = lookup key (blockProps block)
 
 -- | Render a block to HTML lines
-renderBlock :: Block -> [String]
-renderBlock block = case blockType block of
+renderBlock :: LinkMap -> Block -> [String]
+renderBlock linkMap block = case blockType block of
     "image"     -> renderImage block
     "slideshow" -> renderSlideshow block
     "pdf"       -> renderPdf block
     "audio"     -> renderAudio block
     "prog"      -> renderProg block
     "video"     -> renderVideo block
-    "center"    -> renderCenter block
+    "center"    -> renderCenter linkMap block
     "vspace"    -> renderVspace block
     "equation"  -> renderEquation block
-    "theorem"   -> renderTheorem block
-    "quotation" -> renderQuotation block
+    "theorem"   -> renderTheorem linkMap block
+    "quotation" -> renderQuotation linkMap block
     "hide"      -> []  -- Hidden content, renders nothing
     _ -> ["<!-- Unknown Scripta block: " ++ blockType block ++ " -->"]
 
 -- | Render a center block
-renderCenter :: Block -> [String]
-renderCenter block =
-    let content = unlines (blockContent block)
+renderCenter :: LinkMap -> Block -> [String]
+renderCenter linkMap block =
+    let content = unlines $ map (processInline linkMap) (blockContent block)
     in ["<div style=\"text-align: center;\">", content, "</div>"]
 
 -- | Render a vspace block (vertical space)
@@ -252,25 +254,30 @@ renderEquation block =
 -- Syntax: | theorem (Euclid)
 --         There are infinitely many prime numbers
 -- The argument (e.g., "Euclid" or "(Euclid)") is optional
-renderTheorem :: Block -> [String]
-renderTheorem block =
+renderTheorem :: LinkMap -> Block -> [String]
+renderTheorem linkMap block =
     let name = case blockArgs block of
             (n:_) -> " " ++ n
             [] -> ""
-        content = unlines (blockContent block)
+        content = unlines $ map (processInline linkMap) (blockContent block)
     in [ "<div class=\"theorem\">"
        , "<span class=\"theorem-label\">Theorem" ++ name ++ ".</span> " ++ trim content
        , "</div>"
        ]
 
 -- | Render a quotation block
--- Syntax: | quotation
+-- Syntax: | quotation title:Gettysburg Address
 --         To be or not to be...
--- Renders indented and italicized
-renderQuotation :: Block -> [String]
-renderQuotation block =
-    let content = unlines (blockContent block)
-    in [ "<div class=\"quotation\">"
+-- Renders indented and italicized; optional title in bold above
+renderQuotation :: LinkMap -> Block -> [String]
+renderQuotation linkMap block =
+    let content = unlines $ map (processInline linkMap) (blockContent block)
+        title = getProp "title" block
+        titleHtml = case title of
+            Just t  -> ["<div class=\"quotation-title\"><strong>" ++ t ++ "</strong></div>"]
+            Nothing -> []
+    in titleHtml ++
+       [ "<div class=\"quotation\">"
        , trim content
        , "</div>"
        ]
