@@ -18,9 +18,9 @@ main :: IO ()
 main = do
     -- Pre-scan archive files for #post, #diary, #memoirs, and #note tags
     postMap <- scanArchiveForPosts "archive"
-    diaryMap <- scanArchiveForDiary "archive"
-    memoirsMap <- scanArchiveForMemoirs "archive"
-    notesMap <- scanArchiveForNotes "archive"
+    diaryMap <- scanArchiveForTag "#diary" "archive"
+    memoirsMap <- scanArchiveForTag "#memoirs" "archive"
+    notesMap <- scanArchiveForTag "#note" "archive"
     let postFiles = M.keys postMap
         diaryFiles = M.keys diaryMap
         memoirsFiles = M.keys memoirsMap
@@ -669,47 +669,18 @@ toSlug = map toLower . map dashify . filter isValidChar
     dashify c = c
     toLower c = if c >= 'A' && c <= 'Z' then toEnum (fromEnum c + 32) else c
 
--- | Scan archive directory for files containing #diary tag
--- Returns a map of Identifier -> title (from first line of file)
-scanArchiveForDiary :: FilePath -> IO (M.Map Identifier String)
-scanArchiveForDiary dir = do
+-- | Scan archive for files containing a specific tag
+-- Returns a map of Identifier -> title (from first line)
+scanArchiveForTag :: String -> FilePath -> IO (M.Map Identifier String)
+scanArchiveForTag tag dir = do
     files <- findTxtFiles dir
     results <- forM files $ \path -> do
         content <- readFile path
-        let contentLines = lines content
-            title = if not (null contentLines) then head contentLines else ""
-        return $ if hasTag "#diary" content
-                 then Just (fromFilePath path, title)
+        return $ if hasTag tag content
+                 then Just (fromFilePath path, head' $ lines content)
                  else Nothing
     return $ M.fromList $ catMaybes results
-
--- | Scan archive directory for files containing #memoirs tag
--- Returns a map of Identifier -> title (from first line of file)
-scanArchiveForMemoirs :: FilePath -> IO (M.Map Identifier String)
-scanArchiveForMemoirs dir = do
-    files <- findTxtFiles dir
-    results <- forM files $ \path -> do
-        content <- readFile path
-        let contentLines = lines content
-            title = if not (null contentLines) then head contentLines else ""
-        return $ if hasTag "#memoirs" content
-                 then Just (fromFilePath path, title)
-                 else Nothing
-    return $ M.fromList $ catMaybes results
-
--- | Scan archive directory for files containing #note tag
--- Returns a map of Identifier -> title (from first line of file)
-scanArchiveForNotes :: FilePath -> IO (M.Map Identifier String)
-scanArchiveForNotes dir = do
-    files <- findTxtFiles dir
-    results <- forM files $ \path -> do
-        content <- readFile path
-        let contentLines = lines content
-            title = if not (null contentLines) then head contentLines else ""
-        return $ if hasTag "#note" content
-                 then Just (fromFilePath path, title)
-                 else Nothing
-    return $ M.fromList $ catMaybes results
+  where head' [] = ""; head' (x:_) = x
 
 -- | Check if content has a specific tag
 hasTag :: String -> String -> Bool
