@@ -114,6 +114,7 @@ body::after {
     $for(tagList)$
     <button class="tag-btn" data-tag="$tag$">$tag$</button>
     $endfor$
+    <button class="tag-btn random-btn">random</button>
     <span class="doc-count"></span>
 </div>
 
@@ -161,7 +162,7 @@ function filterItems() {
     updateCount();
 }
 
-document.querySelectorAll('.tag-btn').forEach(btn => {
+document.querySelectorAll('.tag-btn:not(.random-btn)').forEach(btn => {
     btn.addEventListener('click', function() {
         document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
         this.classList.add('active');
@@ -170,6 +171,40 @@ document.querySelectorAll('.tag-btn').forEach(btn => {
 });
 
 document.getElementById('search-input').addEventListener('input', filterItems);
+
+document.querySelector('.random-btn').addEventListener('click', function() {
+    const tag = getActiveTag();
+    const searchTerms = getSearchTerms();
+    // Get all items matching current tag/search filter
+    const eligible = Array.from(document.querySelectorAll('#post-list li')).filter(li => {
+        const tags = li.dataset.tags ? li.dataset.tags.split(' ') : [];
+        const title = li.textContent.toLowerCase();
+        const content = (li.dataset.content || '').toLowerCase();
+        const searchText = title + ' ' + content;
+        const matchesTag = (tag === 'all' || tags.includes(tag));
+        const matchesSearch = searchTerms.length === 0 ||
+            searchTerms.every(term => searchText.includes(term));
+        return matchesTag && matchesSearch;
+    });
+    if (eligible.length > 0) {
+        // Shuffle and pick up to 3
+        const shuffled = eligible.sort(() => Math.random() - 0.5);
+        const selected = shuffled.slice(0, 3);
+        // Sort selected alphabetically by title
+        selected.sort((a, b) => {
+            const titleA = a.querySelector('a').textContent.toLowerCase();
+            const titleB = b.querySelector('a').textContent.toLowerCase();
+            return titleA.localeCompare(titleB);
+        });
+        // Hide all, show only selected in order
+        document.querySelectorAll('#post-list li').forEach(li => li.style.display = 'none');
+        selected.forEach(li => li.style.display = '');
+        // Move selected to top of list in sorted order
+        const list = document.getElementById('post-list');
+        selected.reverse().forEach(li => list.prepend(li));
+        updateCount();
+    }
+});
 
 // Move search box next to title
 const h1 = document.querySelector('main h1');
