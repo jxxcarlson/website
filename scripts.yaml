@@ -1,8 +1,10 @@
 scripts:
-
+  start: sh scripts/refresh.sh
   refresh: sh scripts/refresh.sh
   ci: sh scripts/convert-images.sh
   deploy: sh scripts/deploy.sh
-  wa: sh scripts/watch-archive.sh &
+  wa: |
+    pkill -f watch-archive
+    sh scripts/watch-archive.sh &
   kill: sh scripts/kill.sh
 

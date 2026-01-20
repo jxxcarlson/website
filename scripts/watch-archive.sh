@@ -11,8 +11,8 @@ while true; do
     CURRENT_HASH=$(find "$WATCH_DIR" -type f -exec stat -f "%m %N" {} \; 2>/dev/null | sort | md5)
     
     if [ "$LAST_HASH" != "" ] && [ "$CURRENT_HASH" != "$LAST_HASH" ]; then
-        echo "$(date): Change detected, running refresh.sh..."
-        sh refresh.sh
+        echo "$(date): Change detected, rebuilding..."
+        stack exec site rebuild
     fi
     
     LAST_HASH="$CURRENT_HASH"
