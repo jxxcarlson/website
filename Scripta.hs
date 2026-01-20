@@ -76,6 +76,8 @@ parseInlineElement linkMap s = do
             Just ("<em>" ++ processInline linkMap argContent ++ "</em>", rest)
         "b" | not (null argContent) ->
             Just ("<strong>" ++ processInline linkMap argContent ++ "</strong>", rest)
+        "u" | not (null argContent) ->
+            Just ("<u>" ++ processInline linkMap argContent ++ "</u>", rest)
         -- Other elements use parsed arguments
         "prog" -> case parts of
             (_:title:filename:_) -> Just (renderInlineProg title filename, rest)
@@ -252,6 +254,7 @@ renderBlock linkMap block = case blockType block of
     "equation"  -> renderEquation block
     "theorem"   -> renderTheorem linkMap block
     "quotation" -> renderQuotation linkMap block
+    "indent"    -> renderIndent linkMap block
     "hide"      -> []  -- Hidden content, renders nothing
     _ -> ["<!-- Unknown Scripta block: " ++ blockType block ++ " -->"]
 
@@ -260,6 +263,17 @@ renderCenter :: LinkMap -> Block -> [String]
 renderCenter linkMap block =
     let content = processBlockContent linkMap block
     in ["<div style=\"text-align: center;\">", content, "</div>"]
+
+-- | Render an indent block
+-- Syntax: | indent        (default 2em indent)
+--         | indent 40     (40px indent)
+renderIndent :: LinkMap -> Block -> [String]
+renderIndent linkMap block =
+    let content = processBlockContent linkMap block
+        indent = case blockArgs block of
+            (n:_) -> n ++ "px"
+            []    -> "2em"
+    in ["<div style=\"margin-left: " ++ indent ++ ";\">", content, "</div>"]
 
 -- | Render a vspace block (vertical space)
 -- Syntax: | vspace 20  (inserts 20 pixels of vertical space)
