@@ -2,8 +2,9 @@
 # Build and deploy to Cloudflare Pages
 
 echo "Rebuilding site..."
+stack build
 stack exec site rebuild
-# stack build
+
 
 echo "Deploying to Cloudflare..."
 wrangler pages deploy _site --project-name=jxxcarlson

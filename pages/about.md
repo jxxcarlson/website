@@ -35,6 +35,8 @@ later did I realize that I had no idea how to go about it.  From Griffiths I lea
 not only much mathematics, but also how to think about it.  That, of course, is the most
 important lesson for an aspiring researcher.
 
+Below are listed some of the papers I wrote over the years.
+
 
 - [Cubic Surfaces with Special Periods, James Carlson and Domingo Toledo](https://arxiv.org/pdf/1104.1782)
 - [Hyperbolic geometry and moduli of real cubic surfaces, Daniel Allcock, James Carlson, and Domingo Toledo](https://arxiv.org/pdf/0707.1058)
