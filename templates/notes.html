@@ -80,9 +80,13 @@ function updateCount() {
     document.querySelector('.doc-count').textContent = visible + (visible === 1 ? ' note' : ' notes');
 }
 
+let lastActiveTag = 'all';
 function getActiveTag() {
-    const activeBtn = document.querySelector('.tag-btn.active');
-    return activeBtn ? activeBtn.dataset.tag : 'all';
+    const activeBtn = document.querySelector('.tag-btn.active:not(.random-btn)');
+    if (activeBtn) {
+        lastActiveTag = activeBtn.dataset.tag;
+    }
+    return lastActiveTag;
 }
 
 function getSearchTerms() {
@@ -122,6 +126,8 @@ document.getElementById('search-input').addEventListener('input', filterItems);
 document.querySelector('.random-btn').addEventListener('click', function() {
     const tag = getActiveTag();
     const searchTerms = getSearchTerms();
+    document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
+    this.classList.add('active');
     // Get all items matching current tag/search filter
     const allItems = Array.from(document.querySelectorAll('#notes-list li'));
     const eligible = allItems.filter(li => {
@@ -142,12 +148,14 @@ document.querySelector('.random-btn').addEventListener('click', function() {
             [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
         }
         const selected = shuffled.slice(0, 3);
-        // Sort selected alphabetically by title
-        selected.sort((a, b) => {
-            const titleA = a.querySelector('a').textContent.toLowerCase();
-            const titleB = b.querySelector('a').textContent.toLowerCase();
-            return titleA.localeCompare(titleB);
-        });
+        // Only sort alphabetically when picking a subset
+        if (eligible.length > 3) {
+            selected.sort((a, b) => {
+                const titleA = a.querySelector('a').textContent.toLowerCase();
+                const titleB = b.querySelector('a').textContent.toLowerCase();
+                return titleA.localeCompare(titleB);
+            });
+        }
         // Hide all, show only selected
         allItems.forEach(li => li.style.display = 'none');
         selected.forEach(li => li.style.display = '');
