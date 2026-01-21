@@ -99,6 +99,11 @@ main = do
     let allPostIdents = regularPostFiles ++ postFiles
     postNavMap <- buildPostNavMap postMap allPostIdents
 
+    -- Build navigation map for notes (all archive files not matched by other rules)
+    allArchiveFiles <- findTxtFiles "archive"
+    let archiveNoteFiles = filter (`notElem` (postFiles ++ diaryFiles ++ memoirsFiles)) (map fromFilePath allArchiveFiles)
+    noteNavMap <- buildNoteNavMap archiveNoteFiles
+
     hakyll $ do
         -- Static files
         match "media/images/**" $ do
@@ -186,8 +191,8 @@ main = do
         match "archive/**.txt" $ do
             route $ setExtension "html"
             compile $ txtCompiler linkMap
-                >>= loadAndApplyTemplate "templates/note.html" noteCtx
-                >>= loadAndApplyTemplate "templates/default.html" noteCtx
+                >>= loadAndApplyTemplate "templates/note.html" (noteCtxWithNav noteNavMap)
+                >>= loadAndApplyTemplate "templates/default.html" (noteCtxWithNav noteNavMap)
                 >>= relativizeUrls
 
         match "archive/media/**" $ do
@@ -474,7 +479,13 @@ memoirsEntryCtx :: Context String
 memoirsEntryCtx = archiveEntryCtx
 
 noteCtx :: Context String
-noteCtx =
+noteCtx = noteCtxWithNav M.empty
+
+-- | Note context with navigation
+noteCtxWithNav :: NavMap -> Context String
+noteCtxWithNav navMap =
+    navField "prevUrl" fst navMap `mappend`
+    navField "nextUrl" snd navMap `mappend`
     field "title" extractTitle `mappend`
     defaultContext
   where
@@ -482,6 +493,12 @@ noteCtx =
         let path = toFilePath (itemIdentifier item)
         content <- unsafeCompiler $ readFile path
         return $ extractFirstLineTitle content
+    navField name selector nm = field name $ \item ->
+        case M.lookup (itemIdentifier item) nm of
+            Just pair -> case selector pair of
+                Just url -> return url
+                Nothing -> fail $ "No " ++ name
+            Nothing -> fail $ "No " ++ name
 
 -- | Note context with tags field for notes page filtering
 noteCtxWithTagsF :: M.Map Identifier [String] -> Context String
@@ -805,4 +822,18 @@ buildNavFromList items = M.fromList $ zipWith3 mkEntry items prevs nexts
     prevs = map Just $ last routes : init routes
     nexts = map Just $ tail routes ++ [head routes]
     mkEntry (ident, _) prev next = (ident, (prev, next))
+
+-- | Build navigation map for notes
+buildNoteNavMap :: [Identifier] -> IO NavMap
+buildNoteNavMap noteIdents = do
+    let notesWithInfo = map (\ident ->
+            let path = toFilePath ident
+                filename = takeFileName path
+                dateKey = take 12 filename  -- Zettelkasten ID for sorting
+                route = "/" ++ replaceExtension path "html"
+            in (ident, dateKey, route)) noteIdents
+        -- Sort by date (newest first)
+        sorted = sortBy (\(_,d1,_) (_,d2,_) -> compare d2 d1) notesWithInfo
+        identRoutes = [(i, r) | (i, _, r) <- sorted]
+    return $ buildNavFromList identRoutes
 

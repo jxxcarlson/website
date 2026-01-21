@@ -1,4 +1,11 @@
 <article>
+    <header>
+        <div class="post-nav-row">
+            $if(nextUrl)$<a href="$nextUrl$" class="nav-btn nav-next">&#9664;</a>$else$<span class="nav-btn nav-disabled">&#9664;</span>$endif$
+            <span class="post-date"></span>
+            $if(prevUrl)$<a href="$prevUrl$" class="nav-btn nav-prev">&#9654;</a>$else$<span class="nav-btn nav-disabled">&#9654;</span>$endif$
+        </div>
+    </header>
     <section>
         $body$
     </section>
