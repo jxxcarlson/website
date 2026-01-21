@@ -589,9 +589,13 @@ preprocessScriptaImport content =
             convertedTags = map convertTag tags
         in unwords convertedTags
 
-    convertTag tag
-        | "tag:" `isPrefixOf` tag = "#" ++ tag
-        | otherwise = "#" ++ tag
+    convertTag tag =
+        let cleaned = filter isValidTagChar tag
+        in "#" ++ cleaned
+
+    -- Valid tag characters: letters, digits, colon
+    isValidTagChar c = c `elem` ['a'..'z'] || c `elem` ['A'..'Z']
+                    || c `elem` ['0'..'9'] || c == ':'
 
 -- | Compiler that preprocesses Scripta markup before Pandoc
 scriptaCompiler :: LinkMap -> Compiler (Item String)
@@ -734,9 +738,13 @@ extractContentTags content = findTags content
     findTags [] = []
     findTags s@(_:rest)
         | "#tag:" `isPrefixOf` s =
-            let tag = takeWhile (\c -> not (isSpace c) && c /= '\n') (drop 5 s)
-            in tag : findTags (drop (5 + length tag) s)
+            let rawTag = takeWhile (\c -> not (isSpace c) && c /= '\n') (drop 5 s)
+                -- Filter to valid tag characters: letters, digits, colon
+                tag = filter isValidTagChar rawTag
+            in tag : findTags (drop (5 + length rawTag) s)
         | otherwise = findTags rest
+    isValidTagChar c = c `elem` ['a'..'z'] || c `elem` ['A'..'Z']
+                    || c `elem` ['0'..'9'] || c == ':'
 
 -- | Scan archive posts for content tags
 -- Returns a map of Identifier -> [tag names]
