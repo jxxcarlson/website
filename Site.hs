@@ -367,9 +367,10 @@ combinedPostCtx =
         -- Check if it's an archive file (Zettelkasten format with 12 digit prefix)
         if length filename >= 12 && all (`elem` ['0'..'9']) (take 12 filename)
             then do
-                -- Read title from first line of file content
+                -- Read title from first line of file content (after preprocessing)
                 content <- unsafeCompiler $ readFile path
-                let contentLines = lines content
+                let preprocessed = preprocessScriptaImport content
+                    contentLines = lines preprocessed
                     title = if not (null contentLines)
                             then head contentLines
                             else "Untitled"
@@ -441,7 +442,7 @@ archivePostCtxWithNav navMap =
     extractTitle item = do
         let path = toFilePath (itemIdentifier item)
         content <- unsafeCompiler $ readFile path
-        return $ extractFirstLineTitle content
+        return $ extractFirstLineTitle $ preprocessScriptaImport content
     navField name selector nm = field name $ \item ->
         case M.lookup (itemIdentifier item) nm of
             Just pair -> case selector pair of
@@ -469,7 +470,7 @@ archiveEntryCtx =
     extractTitle item = do
         let path = toFilePath (itemIdentifier item)
         content <- unsafeCompiler $ readFile path
-        return $ extractFirstLineTitle content
+        return $ extractFirstLineTitle $ preprocessScriptaImport content
 
 -- | Aliases for backward compatibility
 diaryEntryCtx :: Context String
@@ -492,7 +493,7 @@ noteCtxWithNav navMap =
     extractTitle item = do
         let path = toFilePath (itemIdentifier item)
         content <- unsafeCompiler $ readFile path
-        return $ extractFirstLineTitle content
+        return $ extractFirstLineTitle $ preprocessScriptaImport content
     navField name selector nm = field name $ \item ->
         case M.lookup (itemIdentifier item) nm of
             Just pair -> case selector pair of
@@ -516,7 +517,7 @@ noteCtxWithTagsF tagMap =
 txtCompiler :: LinkMap -> Compiler (Item String)
 txtCompiler linkMap = do
     body <- getResourceBody
-    let content = processScripta linkMap $ stripFirstLineTags $ stripFirstLine (itemBody body)
+    let content = processScripta linkMap $ stripFirstLineTags $ stripFirstLine $ preprocessScriptaImport (itemBody body)
         readerOpts = defaultHakyllReaderOptions
             { readerExtensions = enableExtension Ext_tex_math_dollars $
                                  enableExtension Ext_tex_math_double_backslash $
@@ -535,6 +536,63 @@ txtCompiler linkMap = do
 stripFirstLine :: String -> String
 stripFirstLine = unlines . drop 1 . lines
 
+-- | Preprocess Scripta-format documents
+-- Handles: | title\n<TITLE> format, [tags ...] format, and [image ...] format
+preprocessScriptaImport :: String -> String
+preprocessScriptaImport content =
+    let -- First pass: handle [image ...] blocks (may span multiple lines)
+        afterImage = processImageBlocks content
+        -- Second pass: handle line-based transformations
+        ls = lines afterImage
+        processed = processLines ls
+    in unlines processed
+  where
+    -- Process [image ...] blocks, which may span multiple lines
+    processImageBlocks [] = []
+    processImageBlocks s
+        | "[image " `isPrefixOf` s =
+            let afterOpen = drop 7 s  -- drop "[image "
+                (inner, rest) = spanToClosingBracket afterOpen
+                -- Remove line breaks and normalize whitespace
+                normalized = unwords $ words inner
+            in "| image\n" ++ normalized ++ "\n" ++ processImageBlocks rest
+        | otherwise = head s : processImageBlocks (tail s)
+
+    -- Find content up to closing bracket, handling nested content
+    spanToClosingBracket :: String -> (String, String)
+    spanToClosingBracket s = go [] s
+      where
+        go acc [] = (reverse acc, [])
+        go acc (']':rest) = (reverse acc, rest)
+        go acc (c:rest) = go (c:acc) rest
+
+    processLines [] = []
+    processLines (l:rest)
+        -- Handle | title header
+        | "| title" == dropWhile isSpace l =
+            case rest of
+                (titleLine:remaining) -> titleLine : processLines remaining
+                [] -> []
+        -- Handle [tags ...] line
+        | "[tags " `isPrefixOf` dropWhile isSpace l =
+            convertTagsLine l : processLines rest
+        | otherwise = l : processLines rest
+
+    -- Convert [tags post tag:physics] to #post #tag:physics
+    convertTagsLine line =
+        let trimmed = dropWhile isSpace line
+            -- Extract content between [tags and ]
+            inner = drop 6 trimmed  -- drop "[tags "
+            content' = takeWhile (/= ']') inner
+            tags = words content'
+            -- Convert each tag: "post" -> "#post", "tag:physics" -> "#tag:physics"
+            convertedTags = map convertTag tags
+        in unwords convertedTags
+
+    convertTag tag
+        | "tag:" `isPrefixOf` tag = "#" ++ tag
+        | otherwise = "#" ++ tag
+
 -- | Compiler that preprocesses Scripta markup before Pandoc
 scriptaCompiler :: LinkMap -> Compiler (Item String)
 scriptaCompiler linkMap = do
@@ -551,7 +609,7 @@ scriptaCompiler linkMap = do
 txtPostCompiler :: LinkMap -> Compiler (Item String)
 txtPostCompiler linkMap = do
     body <- getResourceBody
-    let content = processScripta linkMap $ stripFirstLineTags $ stripFirstLine (itemBody body)
+    let content = processScripta linkMap $ stripFirstLineTags $ stripFirstLine $ preprocessScriptaImport (itemBody body)
         readerOpts = defaultHakyllReaderOptions
             { readerExtensions = enableExtension Ext_tex_math_dollars $
                                  enableExtension Ext_tex_math_double_backslash $
@@ -587,10 +645,11 @@ scanArchiveForPosts dir = do
     files <- findTxtFiles dir
     results <- forM files $ \path -> do
         content <- readFile path
-        let category = extractPostCategory content
-            contentLines = lines content
+        let preprocessed = preprocessScriptaImport content
+            category = extractPostCategory preprocessed
+            contentLines = lines preprocessed
             title = if not (null contentLines) then head contentLines else ""
-        return $ if hasPostTag content
+        return $ if hasPostTag preprocessed
                  then Just (fromFilePath path, (category, title))
                  else Nothing
     return $ M.fromList $ catMaybes results
@@ -653,8 +712,9 @@ scanArchiveForTag tag dir = do
     files <- findTxtFiles dir
     results <- forM files $ \path -> do
         content <- readFile path
-        return $ if hasTag tag content
-                 then Just (fromFilePath path, head' $ lines content)
+        let preprocessed = preprocessScriptaImport content
+        return $ if hasTag tag preprocessed
+                 then Just (fromFilePath path, head' $ lines preprocessed)
                  else Nothing
     return $ M.fromList $ catMaybes results
   where head' [] = ""; head' (x:_) = x
@@ -685,7 +745,8 @@ scanArchiveForContentTags dir postIdents = do
     results <- forM postIdents $ \ident -> do
         let path = toFilePath ident
         content <- readFile path
-        let tags = extractContentTags content
+        let preprocessed = preprocessScriptaImport content
+            tags = extractContentTags preprocessed
         return (ident, tags)
     return $ M.fromList results
 
@@ -713,10 +774,11 @@ buildLinkMap dir postMap diaryMap memoirsMap = do
     files <- findTxtFiles dir
     results <- forM files $ \path -> do
         content <- readFile path
-        let ident = fromFilePath path
+        let preprocessed = preprocessScriptaImport content
+            ident = fromFilePath path
             filename = takeBaseName path
             zettelId = take 12 filename  -- Get the Zettelkasten ID
-            contentLines = lines content
+            contentLines = lines preprocessed
             title = if not (null contentLines) then head contentLines else ""
 
             -- Determine URL based on which map the file is in
@@ -739,7 +801,7 @@ buildLinkMap dir postMap diaryMap memoirsMap = do
 txtTagCompiler :: String -> LinkMap -> Compiler (Item String)
 txtTagCompiler tag linkMap = do
     body <- getResourceBody
-    let content = processScripta linkMap $ stripTagContent tag (itemBody body)
+    let content = processScripta linkMap $ stripTagContent tag $ preprocessScriptaImport (itemBody body)
         readerOpts = defaultHakyllReaderOptions
             { readerExtensions = enableExtension Ext_tex_math_dollars $
                                  enableExtension Ext_tex_math_double_backslash $

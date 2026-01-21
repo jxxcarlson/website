@@ -367,6 +367,7 @@ renderQuotation linkMap block =
 -- | Render an image block
 -- Args: background (makes it a background image)
 -- Props: width, caption, float, display (row for horizontal arrangement, fullwidth for 100% width)
+-- If the body starts with "https://", it's treated as a URL; otherwise as a local file path
 renderImage :: Block -> [String]
 renderImage block =
     let display = getProp "display" block
@@ -376,10 +377,17 @@ renderImage block =
         Just "fullwidth" -> renderFullwidthImage block
         _ ->
             let filename = getBlockFile block
-                imgPath = "/media/images/" ++ filename
+                imgPath = toImagePath filename
             in if isBackground
                then renderBackgroundImage imgPath block
                else renderNormalImage imgPath block
+
+-- | Convert filename/URL to image path
+-- If it starts with "https://", use as-is; otherwise prepend /media/images/
+toImagePath :: String -> String
+toImagePath s
+    | "https://" `isPrefixOf` s = s
+    | otherwise = "/media/images/" ++ s
 
 -- | Render multiple images in a horizontal row
 -- Syntax: | image expandable display:row width:200
@@ -393,7 +401,7 @@ renderImageRow block =
         width = fromMaybe "200" (getProp "width" block)
         isExpandable = hasArg "expandable" block
         makeImg f =
-            let imgPath = "/media/images/" ++ f
+            let imgPath = toImagePath f
                 imgTag = "<img src=\"" ++ imgPath ++ "\" width=\"" ++ width ++ "\" style=\"margin-right: 0.5em;\">"
             in if isExpandable then wrapExpandable imgPath imgTag else imgTag
         imgTags = map makeImg filenames
@@ -407,7 +415,7 @@ renderImageRow block =
 renderFullwidthImage :: Block -> [String]
 renderFullwidthImage block =
     let filename = getBlockFile block
-        imgPath = "/media/images/" ++ filename
+        imgPath = toImagePath filename
         caption = getProp "caption" block
         altText = fromMaybe (takeFileName imgPath) caption
         imgTag = "<img src=\"" ++ imgPath ++ "\" style=\"width: 100%;\" alt=\"" ++ altText ++ "\">"
@@ -432,6 +440,7 @@ splitOn delim s =
 -- | Render a normal inline image
 -- Args: expandable (click opens image in new tab)
 -- Props: width, height, caption, float (left/right for text wrapping), ilink (clickable link URL)
+-- URL images (https://) default to 100% width unless width is specified
 renderNormalImage :: String -> Block -> [String]
 renderNormalImage imgPath block =
     let width = getProp "width" block
@@ -440,10 +449,15 @@ renderNormalImage imgPath block =
         floatDir = getProp "float" block
         imageLink = getProp "ilink" block
         isExpandable = hasArg "expandable" block
-        widthAttr = maybe "" (\w -> " width=\"" ++ w ++ "\"") width
+        isUrl = "https://" `isPrefixOf` imgPath
+        -- URL images default to 100% width; local images have no default
+        widthStyle = case (width, isUrl) of
+            (Just w, _)     -> " style=\"width: " ++ addPxIfNeeded w ++ ";\""
+            (Nothing, True) -> " style=\"width: 100%;\""
+            (Nothing, False) -> ""
         heightAttr = maybe "" (\h -> " height=\"" ++ h ++ "\"") height
         altText = fromMaybe (takeFileName imgPath) caption
-        imgTag = "<img src=\"" ++ imgPath ++ "\"" ++ widthAttr ++ heightAttr ++ " alt=\"" ++ altText ++ "\">"
+        imgTag = "<img src=\"" ++ imgPath ++ "\"" ++ widthStyle ++ heightAttr ++ " alt=\"" ++ altText ++ "\">"
         -- Wrap in link: ilink takes priority, then expandable (opens in new window), then no link
         linkedImg = case imageLink of
             Just url -> "<a href=\"" ++ url ++ "\">" ++ imgTag ++ "</a>"
@@ -663,7 +677,7 @@ parseSlides = map parseSlideLine . filter (not . all isSpace)
 -- | Render a single slide
 renderSlide :: Maybe String -> Maybe String -> Bool -> (Int, (String, Maybe String)) -> [String]
 renderSlide width height expandable (idx, (path, caption)) =
-    let imgPath = "/media/images/" ++ path
+    let imgPath = toImagePath path
         activeClass = if idx == 0 then " active" else ""
         -- Use inline style for dimensions to override CSS
         styleAttr = case (width, height) of
@@ -683,6 +697,14 @@ renderSlide width height expandable (idx, (path, caption)) =
 -- | Extract filename from path
 takeFileName :: String -> String
 takeFileName = reverse . takeWhile (/= '/') . reverse
+
+-- | Add "px" suffix to numeric values (e.g., "600" -> "600px", "50%" -> "50%")
+addPxIfNeeded :: String -> String
+addPxIfNeeded s
+    | all isDigit s = s ++ "px"
+    | otherwise = s
+  where
+    isDigit c = c >= '0' && c <= '9'
 
 -- | Trim whitespace from both ends
 trim :: String -> String
