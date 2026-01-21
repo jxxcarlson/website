@@ -470,7 +470,7 @@ noteCtxWithTagsF tagMap =
 txtCompiler :: LinkMap -> Compiler (Item String)
 txtCompiler linkMap = do
     body <- getResourceBody
-    let content = processScripta linkMap $ stripFirstLine (itemBody body)
+    let content = processScripta linkMap $ stripFirstLineTags $ stripFirstLine (itemBody body)
         readerOpts = defaultHakyllReaderOptions
             { readerExtensions = enableExtension Ext_tex_math_dollars $
                                  enableExtension Ext_tex_math_double_backslash $
@@ -501,11 +501,11 @@ scriptaCompiler linkMap = do
         Left err -> fail $ show err
         Right html -> makeItem (T.unpack html)
 
--- | Compiler for archive posts - strips first line (title) and #post tags
+-- | Compiler for archive posts - strips first line (title) and tags from first content line
 txtPostCompiler :: LinkMap -> Compiler (Item String)
 txtPostCompiler linkMap = do
     body <- getResourceBody
-    let content = processScripta linkMap $ stripPostTags $ stripFirstLine (itemBody body)
+    let content = processScripta linkMap $ stripFirstLineTags $ stripFirstLine (itemBody body)
         readerOpts = defaultHakyllReaderOptions
             { readerExtensions = enableExtension Ext_tex_math_dollars $
                                  enableExtension Ext_tex_math_double_backslash $
@@ -520,11 +520,19 @@ txtPostCompiler linkMap = do
         Left err -> fail $ show err
         Right html -> makeItem (T.unpack html)
 
--- | Strip #post and #post/category tags from content
-stripPostTags :: String -> String
-stripPostTags = unlines . filter (not . isPostTag) . lines
+-- | Strip all tags from the first non-blank line
+-- Tags are words starting with '#'. If the line becomes empty after stripping, it's removed.
+stripFirstLineTags :: String -> String
+stripFirstLineTags content = unlines $ processLines (lines content)
   where
-    isPostTag line = "#post" `isPrefixOf` (dropWhile isSpace line)
+    processLines [] = []
+    processLines (l:rest)
+        | all isSpace l = l : processLines rest  -- Preserve blank lines at start
+        | otherwise =
+            let stripped = unwords $ filter (not . ("#" `isPrefixOf`)) $ words l
+            in if null stripped || all isSpace stripped
+               then rest  -- Remove the now-empty tag line
+               else stripped : rest  -- Keep the line with remaining content
 
 -- | Scan archive directory for files containing #post tags
 -- Returns a map of Identifier -> (Maybe category, title)
@@ -700,15 +708,9 @@ txtTagCompiler tag linkMap = do
         Left err -> fail $ show err
         Right html -> makeItem (T.unpack html)
 
--- | Strip first line (title) and specified tag from content
+-- | Strip first line (title) and tags from first content line
 stripTagContent :: String -> String -> String
-stripTagContent tag s =
-    let ls = lines s
-        withoutTitle = drop 1 ls
-        withoutTags = filter (not . hasTagPrefix) withoutTitle
-    in unlines withoutTags
-  where
-    hasTagPrefix line = tag `isPrefixOf` (dropWhile isSpace line)
+stripTagContent _ s = stripFirstLineTags $ stripFirstLine s
 
 -- | Aliases for backward compatibility
 txtDiaryCompiler :: LinkMap -> Compiler (Item String)
