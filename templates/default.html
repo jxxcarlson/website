@@ -39,6 +39,16 @@
             } else if (linkPath !== '/' && pathBase.indexOf(linkBase) === 0) {
                 links[i].classList.add('active');
             }
+            // Highlight nav items when viewing their content
+            if (linkPath === '/blog.html' && path.indexOf('/posts/') === 0) {
+                links[i].classList.add('active');
+            }
+            if (linkPath === '/notes/' && path.indexOf('/archive/') === 0) {
+                links[i].classList.add('active');
+            }
+            if (linkPath === '/diary/' && path.indexOf('/diary/') === 0) {
+                links[i].classList.add('active');
+            }
         }
     })();
     </script>
