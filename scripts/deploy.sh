@@ -1,6 +1,9 @@
 #!/bin/bash
 # Build and deploy to Cloudflare Pages
 
+echo "Converting images to WebP..."
+sh scripts/convert-images.sh
+
 echo "Rebuilding site..."
 stack build
 stack exec site rebuild
