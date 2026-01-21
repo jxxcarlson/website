@@ -38,6 +38,7 @@ spanCodeFence (line:rest)
 
 -- | Process inline Scripta elements in a line
 -- Syntax: [prog TITLE FILENAME], [ilink ID], [ilink ID "text"], [i text], [b text], [par]
+-- Wiki-style links: [[ID]] or [[ID custom text]]
 -- Backtick-delimited code spans are passed through verbatim
 processInline :: LinkMap -> String -> String
 processInline _ [] = []
@@ -49,10 +50,38 @@ processInline linkMap s@(c:cs)
             ('`':remaining) -> c : code ++ "`" ++ processInline linkMap remaining
             _ -> c : processInline linkMap cs  -- No closing backtick, continue
     | c == '[' =
-        case parseInlineElement linkMap s of
-            Just (html, rest) -> html ++ processInline linkMap rest
-            Nothing -> c : processInline linkMap cs
+        -- Check for wiki-style link [[...]]
+        case cs of
+            ('[':rest) -> case parseWikiLink linkMap rest of
+                Just (html, remaining) -> html ++ processInline linkMap remaining
+                Nothing -> c : processInline linkMap cs
+            _ -> case parseInlineElement linkMap s of
+                Just (html, rest) -> html ++ processInline linkMap rest
+                Nothing -> c : processInline linkMap cs
     | otherwise = c : processInline linkMap cs
+
+-- | Parse wiki-style link [[ID]] or [[ID custom text]]
+-- Input starts after the opening [[
+-- Returns Just (rendered HTML, remaining string after ]]) or Nothing
+parseWikiLink :: LinkMap -> String -> Maybe (String, String)
+parseWikiLink linkMap s = do
+    -- Find closing ]]
+    idx <- findDoubleClosingBracket s
+    let inner = take idx s
+        rest = drop (idx + 2) s  -- drop ]]
+        parts = words inner
+    case parts of
+        [] -> Nothing
+        [zettelId] -> Just (renderInlineLink linkMap zettelId Nothing, rest)
+        (zettelId:textParts) -> Just (renderInlineLink linkMap zettelId (Just $ unwords textParts), rest)
+
+-- | Find closing ]] in string
+findDoubleClosingBracket :: String -> Maybe Int
+findDoubleClosingBracket s = findAt 0 s
+  where
+    findAt _ [] = Nothing
+    findAt n (']':']':_) = Just n
+    findAt n (_:rest) = findAt (n + 1) rest
 
 -- | Try to parse an inline element starting with '['
 -- Returns Just (rendered HTML, remaining string) or Nothing
