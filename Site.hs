@@ -8,7 +8,7 @@ import Text.Pandoc
 import Text.Pandoc.Options
 import Scripta (processScripta, LinkMap)
 import System.Directory (listDirectory, doesDirectoryExist)
-import System.FilePath ((</>), takeExtension, takeBaseName)
+import System.FilePath ((</>), takeExtension, takeBaseName, takeFileName, dropExtension, replaceExtension)
 import Control.Monad (filterM, forM)
 import Data.List (isPrefixOf, isInfixOf, find, dropWhileEnd, sortBy, sort)
 import Data.Char (isSpace)
@@ -94,6 +94,11 @@ main = do
     -- Build the link map for internal links
     linkMap <- buildLinkMap "archive" postMap diaryMap memoirsMap
 
+    -- Build navigation map for posts (prev/next links)
+    regularPostFiles <- findMdFiles "posts"
+    let allPostIdents = regularPostFiles ++ postFiles
+    postNavMap <- buildPostNavMap postMap allPostIdents
+
     hakyll $ do
         -- Static files
         match "media/images/**" $ do
@@ -131,8 +136,8 @@ main = do
         match "posts/**" $ do
             route $ setExtension "html"
             compile $ scriptaCompiler linkMap
-                >>= loadAndApplyTemplate "templates/post.html"    postCtx
-                >>= loadAndApplyTemplate "templates/default.html" postCtx
+                >>= loadAndApplyTemplate "templates/post.html"    (postCtxWithNav postNavMap)
+                >>= loadAndApplyTemplate "templates/default.html" (postCtxWithNav postNavMap)
                 >>= relativizeUrls
 
         match "photography/**" $ do
@@ -157,8 +162,8 @@ main = do
         match (fromList postFiles) $ do
             route $ customRoute (archiveToPostRoute postMap)
             compile $ txtPostCompiler linkMap
-                >>= loadAndApplyTemplate "templates/post.html" archivePostCtx
-                >>= loadAndApplyTemplate "templates/default.html" archivePostCtx
+                >>= loadAndApplyTemplate "templates/post.html" (archivePostCtxWithNav postNavMap)
+                >>= loadAndApplyTemplate "templates/default.html" (archivePostCtxWithNav postNavMap)
                 >>= relativizeUrls
 
         -- Diary entries (archive notes with #diary tag) - MUST come before archive match
@@ -301,12 +306,24 @@ main = do
         match "templates/*" $ compile templateBodyCompiler
 
 postCtx :: Context String
-postCtx =
+postCtx = postCtxWithNav M.empty
+
+-- | Post context with navigation (prev/next links)
+postCtxWithNav :: NavMap -> Context String
+postCtxWithNav navMap =
+    navField "prevUrl" fst navMap `mappend`
+    navField "nextUrl" snd navMap `mappend`
     dateField "date" "%B %e, %Y" `mappend`
     field "wordcount" wordCount `mappend`
     defaultContext
   where
     wordCount item = return $ show $ length $ words $ stripHtmlTags $ itemBody item
+    navField name selector nm = field name $ \item ->
+        case M.lookup (itemIdentifier item) nm of
+            Just pair -> case selector pair of
+                Just url -> return url
+                Nothing -> fail $ "No " ++ name
+            Nothing -> fail $ "No " ++ name
 
 -- | Combined context that works for both regular posts and archive posts
 combinedPostCtx :: Context String
@@ -402,7 +419,13 @@ recentFirst' items = return $ sortBy (flip compareByDate) items
 -- | Context for archive notes converted to posts
 -- Extracts title from first line of content, date from filename
 archivePostCtx :: Context String
-archivePostCtx =
+archivePostCtx = archivePostCtxWithNav M.empty
+
+-- | Archive post context with navigation
+archivePostCtxWithNav :: NavMap -> Context String
+archivePostCtxWithNav navMap =
+    navField "prevUrl" fst navMap `mappend`
+    navField "nextUrl" snd navMap `mappend`
     field "date" extractDate `mappend`
     field "title" extractTitle `mappend`
     field "wordcount" wordCount `mappend`
@@ -414,6 +437,12 @@ archivePostCtx =
         let path = toFilePath (itemIdentifier item)
         content <- unsafeCompiler $ readFile path
         return $ extractFirstLineTitle content
+    navField name selector nm = field name $ \item ->
+        case M.lookup (itemIdentifier item) nm of
+            Just pair -> case selector pair of
+                Just url -> return url
+                Nothing -> fail $ "No " ++ name
+            Nothing -> fail $ "No " ++ name
 
 -- | Context for archive entries (diary, memoirs, etc.)
 -- Extracts title from first line of content, date from Zettelkasten ID in filename
@@ -718,4 +747,59 @@ txtDiaryCompiler = txtTagCompiler "#diary"
 
 txtMemoirsCompiler :: LinkMap -> Compiler (Item String)
 txtMemoirsCompiler = txtTagCompiler "#memoirs"
+
+-- | Type alias for navigation map: Identifier -> (Maybe prevUrl, Maybe nextUrl)
+type NavMap = M.Map Identifier (Maybe String, Maybe String)
+
+-- | Find all .md files in a directory
+findMdFiles :: FilePath -> IO [Identifier]
+findMdFiles dir = do
+    exists <- doesDirectoryExist dir
+    if not exists
+        then return []
+        else do
+            entries <- listDirectory dir
+            let paths = map (dir </>) entries
+            files <- filterM (\p -> do
+                isDir <- doesDirectoryExist p
+                return $ not isDir && takeExtension p == ".md") paths
+            subdirs <- filterM doesDirectoryExist paths
+            subIdents <- concat <$> mapM findMdFiles subdirs
+            return $ map fromFilePath files ++ subIdents
+
+-- | Build navigation map for posts
+-- Posts are sorted by date (newest first), navigation goes chronologically
+buildPostNavMap :: M.Map Identifier (Maybe String, String) -> [Identifier] -> IO NavMap
+buildPostNavMap archivePostMap allIdents = do
+    -- Get dates and routes for all posts
+    postsWithInfo <- forM allIdents $ \ident -> do
+        let path = toFilePath ident
+            filename = takeFileName path
+            basename = dropExtension filename
+        -- Determine date key and route
+        if takeExtension path == ".txt"
+            then do
+                -- Archive post - date is first 8 digits of filename
+                let dateKey = take 8 filename
+                    route = "/" ++ archiveToPostRoute archivePostMap ident
+                return (ident, dateKey, route)
+            else do
+                -- Regular post - date is YYYY-MM-DD prefix
+                let dateKey = take 10 basename
+                    route = "/" ++ replaceExtension path "html"
+                return (ident, dateKey, route)
+    -- Sort by date (newest first)
+    let sorted = sortBy (\(_,d1,_) (_,d2,_) -> compare d2 d1) postsWithInfo
+        identRoutes = [(i, r) | (i, _, r) <- sorted]
+    -- Build prev/next map
+    return $ buildNavFromList identRoutes
+
+-- | Build navigation map from sorted list of (Identifier, route)
+buildNavFromList :: [(Identifier, String)] -> NavMap
+buildNavFromList items = M.fromList $ zipWith3 mkEntry items prevs nexts
+  where
+    routes = map snd items
+    prevs = Nothing : map Just routes
+    nexts = map Just (drop 1 routes) ++ [Nothing]
+    mkEntry (ident, _) prev next = (ident, (prev, next))
 

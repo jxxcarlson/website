@@ -262,3 +262,34 @@ figcaption {
 p.par {
     margin: 0.25rem 0;
 }
+
+/* Post navigation buttons */
+.post-nav-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.nav-btn {
+    padding: 0.25rem 0.75rem;
+    border-radius: 3px;
+    text-decoration: none;
+    font-size: 0.9rem;
+}
+
+.nav-btn.nav-prev,
+.nav-btn.nav-next {
+    background: #0066cc;
+    color: white;
+}
+
+.nav-btn.nav-prev:hover,
+.nav-btn.nav-next:hover {
+    background: #0055aa;
+}
+
+.nav-btn.nav-disabled {
+    background: #ddd;
+    color: #999;
+}

@@ -1,6 +1,10 @@
 <article>
     <header>
-        <p class="post-date">Posted on $date$</p>
+        <div class="post-nav-row">
+            $if(prevUrl)$<a href="$prevUrl$" class="nav-btn nav-prev">&larr; Prev</a>$else$<span class="nav-btn nav-disabled">&larr; Prev</span>$endif$
+            <span class="post-date">Posted on $date$</span>
+            $if(nextUrl)$<a href="$nextUrl$" class="nav-btn nav-next">Next &rarr;</a>$else$<span class="nav-btn nav-disabled">Next &rarr;</span>$endif$
+        </div>
     </header>
     <section>
         $body$
