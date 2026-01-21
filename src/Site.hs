@@ -95,7 +95,7 @@ main = do
     linkMap <- buildLinkMap "archive" postMap diaryMap memoirsMap
 
     -- Build navigation map for posts (prev/next links)
-    regularPostFiles <- findMdFiles "posts"
+    regularPostFiles <- findMdFiles "content/posts"
     let allPostIdents = regularPostFiles ++ postFiles
     postNavMap <- buildPostNavMap postMap allPostIdents
 
@@ -131,34 +131,34 @@ main = do
             compile compressCssCompiler
 
         -- Pages
-        match "pages/*" $ do
-            route   $ gsubRoute "pages/" (const "") `composeRoutes` setExtension "html"
+        match "content/pages/*" $ do
+            route   $ gsubRoute "content/pages/" (const "") `composeRoutes` setExtension "html"
             compile $ scriptaCompiler linkMap
                 >>= loadAndApplyTemplate "templates/default.html" defaultContext
                 >>= relativizeUrls
 
-        -- Posts (from posts/ directory)
-        match "posts/**" $ do
-            route $ setExtension "html"
+        -- Posts (from content/posts/ directory)
+        match "content/posts/**" $ do
+            route $ gsubRoute "content/" (const "") `composeRoutes` setExtension "html"
             compile $ scriptaCompiler linkMap
                 >>= loadAndApplyTemplate "templates/post.html"    (postCtxWithNav postNavMap)
                 >>= loadAndApplyTemplate "templates/default.html" (postCtxWithNav postNavMap)
                 >>= relativizeUrls
 
-        match "photography/**" $ do
-            route $ setExtension "html"
+        match "content/photography/**" $ do
+            route $ gsubRoute "content/" (const "") `composeRoutes` setExtension "html"
             compile $ scriptaCompiler linkMap
                 >>= loadAndApplyTemplate "templates/photography.html" defaultContext
                 >>= relativizeUrls
 
-        match "music/**" $ do
-            route $ setExtension "html"
+        match "content/music/**" $ do
+            route $ gsubRoute "content/" (const "") `composeRoutes` setExtension "html"
             compile $ scriptaCompiler linkMap
                 >>= loadAndApplyTemplate "templates/default.html" defaultContext
                 >>= relativizeUrls
 
-        match "art/**" $ do
-            route $ setExtension "html"
+        match "content/art/**" $ do
+            route $ gsubRoute "content/" (const "") `composeRoutes` setExtension "html"
             compile $ scriptaCompiler linkMap
                 >>= loadAndApplyTemplate "templates/art.html" defaultContext
                 >>= relativizeUrls
@@ -259,7 +259,7 @@ main = do
         create ["archive.html"] $ do
             route idRoute
             compile $ do
-                posts <- recentFirst =<< loadAll "posts/**"
+                posts <- recentFirst =<< loadAll "content/posts/**"
                 let archiveCtx =
                         listField "posts" postCtx (return posts) `mappend`
                         constField "title" "Archives"            `mappend`
@@ -274,7 +274,7 @@ main = do
         create ["blog.html"] $ do
             route idRoute
             compile $ do
-                regularPosts <- loadAll "posts/**"
+                regularPosts <- loadAll "content/posts/**"
                 archivePosts <- loadAll (fromList postFiles)
                 let allPosts = regularPosts ++ archivePosts
                 sortedPosts <- recentFirst' allPosts
@@ -294,15 +294,15 @@ main = do
                     >>= relativizeUrls
 
         -- Projects page
-        match "projects.md" $ do
-            route $ setExtension "html"
+        match "content/projects.md" $ do
+            route $ gsubRoute "content/" (const "") `composeRoutes` setExtension "html"
             compile $ scriptaCompiler linkMap
                 >>= loadAndApplyTemplate "templates/default.html" defaultContext
                 >>= relativizeUrls
 
         -- Index page (landing page) - supports Scripta markup
-        match "index.md" $ do
-            route $ setExtension "html"
+        match "content/index.md" $ do
+            route $ gsubRoute "content/" (const "") `composeRoutes` setExtension "html"
             compile $ scriptaCompiler linkMap
                 >>= loadAndApplyTemplate "templates/default.html" defaultContext
                 >>= relativizeUrls
