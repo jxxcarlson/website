@@ -45,7 +45,6 @@ _cache/
 
 ### Project-specific ###
 archive
-src/
 stack.yaml.lock
 media/images-original/
 media/video/

@@ -4,6 +4,10 @@
     padding: 0;
 }
 
+html {
+    background-color: #d0c9be;
+}
+
 body {
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
     line-height: 1.6;

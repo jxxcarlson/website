@@ -17,6 +17,7 @@ dependencies:
 executables:
   site:
     main: Site.hs
+    source-dirs: src
     other-modules:
       - Scripta
     ghc-options:
