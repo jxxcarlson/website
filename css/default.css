@@ -272,24 +272,15 @@ p.par {
 }
 
 .nav-btn {
-    padding: 0.25rem 0.75rem;
+    padding: 0.15rem 0.5rem;
     border-radius: 3px;
     text-decoration: none;
-    font-size: 0.9rem;
+    font-size: 0.8rem;
+    background: #e8e8e8;
+    color: #555;
 }
 
-.nav-btn.nav-prev,
-.nav-btn.nav-next {
-    background: #0066cc;
-    color: white;
-}
-
-.nav-btn.nav-prev:hover,
-.nav-btn.nav-next:hover {
-    background: #0055aa;
-}
-
-.nav-btn.nav-disabled {
+.nav-btn:hover {
     background: #ddd;
-    color: #999;
+    color: #333;
 }

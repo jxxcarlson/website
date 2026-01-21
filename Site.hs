@@ -795,11 +795,14 @@ buildPostNavMap archivePostMap allIdents = do
     return $ buildNavFromList identRoutes
 
 -- | Build navigation map from sorted list of (Identifier, route)
+-- Navigation is circular: last wraps to first and vice versa
 buildNavFromList :: [(Identifier, String)] -> NavMap
+buildNavFromList [] = M.empty
 buildNavFromList items = M.fromList $ zipWith3 mkEntry items prevs nexts
   where
     routes = map snd items
-    prevs = Nothing : map Just routes
-    nexts = map Just (drop 1 routes) ++ [Nothing]
+    -- Circular: prev of first is last, next of last is first
+    prevs = map Just $ last routes : init routes
+    nexts = map Just $ tail routes ++ [head routes]
     mkEntry (ident, _) prev next = (ident, (prev, next))
 
