@@ -260,10 +260,10 @@ getBlockFile block = case blockContent block of
     (f:_) -> trim f
     [] -> ""
 
--- | Wrap content in expandable link (opens in new window on click)
+-- | Wrap content in expandable link (opens in lightbox overlay on click)
 wrapExpandable :: String -> String -> String
 wrapExpandable url content =
-    "<a href=\"" ++ url ++ "\" onclick=\"window.open(this.href, '_blank', 'menubar=no,toolbar=no,location=no'); return false;\">" ++ content ++ "</a>"
+    "<a href=\"" ++ url ++ "\" onclick=\"openLightbox(this.href); return false;\">" ++ content ++ "</a>"
 
 -- | Process block content through inline processor
 processBlockContent :: LinkMap -> Block -> String
