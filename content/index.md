@@ -2,18 +2,11 @@
 title: jxxcarlson
 ---
 
-| image width:200 float:left ilink:/blog.html caption:Blogging tool
-machines/typewriter_bw.webp
 
-| vspace 1
+| image width:500 ilink:/blog.html caption:Bubble Chamber, CERN. Click me
+science/hydrogen_bubble_chamber_cern_bw.webp
 
-- [Notes](/notes/) - Reference notes
-- [Blog](/blog.html) - Articles and posts
-- [Photography](/photography/) - Photo gallery
-- [Music](/music/) - Some compositions
-- [Art](/art/)
-- [Code](/projects.html) - Software projects and experiments
-- [About](/about.html) 
+     
 
 | vspace 2
 

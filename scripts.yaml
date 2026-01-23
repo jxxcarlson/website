@@ -9,4 +9,6 @@ scripts:
     (bash scripts/watch_and_deploy.sh >> /tmp/watch_and_deploy.log 2>&1 &)
     echo "Watcher started. Log: /tmp/watch_and_deploy.log"
   kill: pkill -f watch_and_deploy.sh
+  wl: sh scripts/watch_local.sh &
+  log: tail -f /tmp/watch_and_deploy.log
 
