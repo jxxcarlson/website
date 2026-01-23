@@ -18,8 +18,8 @@ stack build && stack exec site rebuild
 # Deploy to Cloudflare
 sh scripts/deploy.sh
 
-# Watch archive directory for changes (run in background)
-sh scripts/watch-archive.sh &
+# Watch archive and auto-deploy on changes (run in background)
+sh scripts/watch_and_deploy.sh &
 
 # Convert PNG/JPG to WebP
 sh scripts/convert-images.sh
@@ -86,4 +86,4 @@ Located in `/templates/`. Key templates: `default.html` (base layout with nav an
 
 ## Archive Path
 
-The archive directory is symlinked from `/Users/carlson/Desktop/ARCHIVE`. The watch-archive script monitors this location for changes.
+The archive directory is symlinked from `~/Dropbox/theARCHIVE`. The `watch_and_deploy.sh` script monitors this location and auto-deploys after 5 minutes of inactivity.

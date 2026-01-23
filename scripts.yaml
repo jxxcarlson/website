@@ -3,8 +3,10 @@ scripts:
   refresh: sh scripts/refresh.sh
   ci: sh scripts/convert-images.sh
   deploy: sh scripts/deploy.sh
-  wa: |
-    pkill -f watch-archive
-    sh scripts/watch-archive.sh &
-  kill: sh scripts/kill.sh
+  watch: |
+    pkill -f watch_and_deploy.sh || true
+    sleep 1
+    (bash scripts/watch_and_deploy.sh >> /tmp/watch_and_deploy.log 2>&1 &)
+    echo "Watcher started. Log: /tmp/watch_and_deploy.log"
+  kill: pkill -f watch_and_deploy.sh
 
