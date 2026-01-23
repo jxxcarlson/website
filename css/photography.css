@@ -1,4 +1,8 @@
 /* Photography pages - dark theme */
+html:has(body.photography) {
+    background-color: #0d0d0d !important;
+}
+
 body.photography {
     background-color: #0a0a0a;
     color: #e0e0e0;

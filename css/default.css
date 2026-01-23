@@ -290,7 +290,7 @@ p.par {
 }
 
 /* Two-column layout for Notes and Blog pages */
-@media (min-width: 1024px) {
+@media (min-width: 800px) {
     body.two-column-page {
         max-width: 1400px;
         padding: 2rem 3rem;
@@ -375,7 +375,7 @@ p.par {
 }
 
 /* Mobile: hide content column, show normal layout */
-@media (max-width: 1023px) {
+@media (max-width: 799px) {
     .content-column {
         display: none;
     }

@@ -30,7 +30,7 @@ body::after {
   pointer-events: none;
 }
 /* Tablet: shrink sidebars */
-@media (max-width: 1024px) {
+@media (max-width: 799px) {
   body::before {
     left: 75%;
     width: 25%;
@@ -248,7 +248,7 @@ if (h1 && searchBox) {
 }
 
 // Add two-column class to body on desktop
-if (window.matchMedia('(min-width: 1024px)').matches) {
+if (window.matchMedia('(min-width: 800px)').matches) {
     document.body.classList.add('two-column-page');
 }
 

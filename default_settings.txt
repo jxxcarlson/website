@@ -1,0 +1,5 @@
+# Layout Settings
+# These values are used in css/default.css, js/dynamic-loader.js, and templates
+
+upper_threshold = 800px
+lower_threshold = 799px

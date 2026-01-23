@@ -1,8 +1,8 @@
 // Dynamic content loader for two-column layout
-// Only active on desktop (>= 1024px)
+// Only active on desktop (>= 800px)
 
 (function() {
-    const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+    const isDesktop = window.matchMedia('(min-width: 800px)').matches;
     if (!isDesktop) return;
 
     // Find the list and content elements
