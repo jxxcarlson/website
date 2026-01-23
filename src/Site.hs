@@ -801,7 +801,7 @@ buildLinkMap dir postMap diaryMap memoirsMap = do
                        then "/" ++ archiveToDiaryRoute diaryMap ident
                        else if ident `M.member` memoirsMap
                             then "/" ++ archiveToMemoirsRoute memoirsMap ident
-                            else "/archive/" ++ zettelId ++ ".html"
+                            else "/archive/" ++ filename ++ ".html"
 
         -- Only include files with valid Zettelkasten IDs (12 digits)
         return $ if length filename >= 12 && all (`elem` ['0'..'9']) (take 12 filename)
