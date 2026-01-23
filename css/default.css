@@ -362,6 +362,10 @@ p.par {
     .dynamic-content h1 {
         margin-top: 0;
     }
+
+    .dynamic-content .nav-btn {
+        display: none;
+    }
 }
 
 /* Mobile: hide content column, show normal layout */

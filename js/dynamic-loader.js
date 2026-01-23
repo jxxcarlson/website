@@ -82,13 +82,18 @@
     function updateSelectedState(url) {
         list.querySelectorAll('li').forEach(li => {
             const link = li.querySelector('a');
-            if (link && link.getAttribute('href') === url) {
+            if (link && link.dataset.absoluteUrl === url) {
                 li.classList.add('selected');
             } else {
                 li.classList.remove('selected');
             }
         });
     }
+
+    // Store absolute URLs on page load before pushState changes anything
+    list.querySelectorAll('li a').forEach(link => {
+        link.dataset.absoluteUrl = new URL(link.href).pathname;
+    });
 
     // Intercept clicks on list items
     list.addEventListener('click', function(e) {
@@ -99,14 +104,15 @@
         const link = li.querySelector('a');
         if (!link) return;
 
-        const url = link.getAttribute('href');
+        // Use pre-stored absolute URL
+        const url = link.dataset.absoluteUrl;
         if (!url) return;
 
         // Prevent default navigation
         e.preventDefault();
 
         // Load content dynamically
-        loadContent(url);
+        window.loadContent(url);
     });
 
     // Handle browser back/forward navigation
@@ -143,8 +149,8 @@
         const firstVisible = document.querySelector('#' + listId + ' li:not([style*="display: none"])');
         if (firstVisible) {
             const link = firstVisible.querySelector('a');
-            if (link) {
-                window.loadContent(link.getAttribute('href'));
+            if (link && link.dataset.absoluteUrl) {
+                window.loadContent(link.dataset.absoluteUrl);
             }
         }
     }
