@@ -380,10 +380,7 @@ combinedPostCtx =
                 -- Read title from first line of file content (after preprocessing)
                 content <- unsafeCompiler $ readFile path
                 let preprocessed = preprocessScriptaImport content
-                    contentLines = lines preprocessed
-                    title = if not (null contentLines)
-                            then head contentLines
-                            else "Untitled"
+                    title = extractFirstLineTitle preprocessed
                 return $ if null title then "Untitled" else title
             else do
                 metadata <- getMetadata (itemIdentifier item)
@@ -661,8 +658,7 @@ scanArchiveForPosts dir = do
         content <- readFile path
         let preprocessed = preprocessScriptaImport content
             category = extractPostCategory preprocessed
-            contentLines = lines preprocessed
-            title = if not (null contentLines) then head contentLines else ""
+            title = extractFirstLineTitle preprocessed
         return $ if hasPostTag preprocessed
                  then Just (fromFilePath path, (category, title))
                  else Nothing
@@ -796,8 +792,7 @@ buildLinkMap dir postMap diaryMap memoirsMap = do
             ident = fromFilePath path
             filename = takeBaseName path
             zettelId = take 12 filename  -- Get the Zettelkasten ID
-            contentLines = lines preprocessed
-            title = if not (null contentLines) then head contentLines else ""
+            title = extractFirstLineTitle preprocessed
 
             -- Determine URL based on which map the file is in
             url = if ident `M.member` postMap
