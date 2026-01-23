@@ -152,6 +152,6 @@
     // Expose for use by filter/search functions
     window.selectFirstVisible = selectFirstVisible;
 
-    // Select first item on initial load (temporarily disabled for debugging)
-    // selectFirstVisible();
+    // Select first item on initial load (deferred to ensure DOM is ready)
+    setTimeout(selectFirstVisible, 100);
 })();
