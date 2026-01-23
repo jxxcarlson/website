@@ -130,6 +130,10 @@ main = do
             route   idRoute
             compile compressCssCompiler
 
+        match "js/*" $ do
+            route   idRoute
+            compile copyFileCompiler
+
         -- Pages
         match "content/pages/*" $ do
             route   $ gsubRoute "content/pages/" (const "") `composeRoutes` setExtension "html"

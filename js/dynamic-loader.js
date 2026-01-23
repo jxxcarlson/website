@@ -1,0 +1,157 @@
+// Dynamic content loader for two-column layout
+// Only active on desktop (>= 1024px)
+
+(function() {
+    const isDesktop = window.matchMedia('(min-width: 1024px)').matches;
+    if (!isDesktop) return;
+
+    // Find the list and content elements
+    const notesList = document.getElementById('notes-list');
+    const postList = document.getElementById('post-list');
+    const list = notesList || postList;
+    if (!list) return;
+
+    const contentColumn = document.querySelector('.content-column');
+    if (!contentColumn) return;
+
+    const placeholder = contentColumn.querySelector('.content-placeholder');
+    const dynamicContent = contentColumn.querySelector('.dynamic-content');
+    if (!placeholder || !dynamicContent) return;
+
+    let currentUrl = null;
+
+    // Load content from a URL into the right pane (exposed globally)
+    window.loadContent = async function loadContent(url, pushState = true) {
+        try {
+            const response = await fetch(url);
+            if (!response.ok) throw new Error('Failed to fetch');
+
+            const html = await response.text();
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            // Extract article content - look for main content
+            const main = doc.querySelector('main');
+            if (!main) throw new Error('No main element found');
+
+            // Get the content (skip the h1 title if we want to show our own)
+            const title = main.querySelector('h1');
+            const titleText = title ? title.textContent : '';
+
+            // Clone the main content
+            const content = main.cloneNode(true);
+
+            // Show the dynamic content area
+            placeholder.style.display = 'none';
+            dynamicContent.style.display = 'block';
+            dynamicContent.innerHTML = content.innerHTML;
+
+            // Update URL without page reload
+            if (pushState && url !== currentUrl) {
+                history.pushState({ url: url }, '', url);
+            }
+            currentUrl = url;
+
+            // Update selected state in list
+            updateSelectedState(url);
+
+            // Re-render KaTeX math if available
+            if (typeof renderMathInElement === 'function') {
+                renderMathInElement(dynamicContent, {
+                    delimiters: [
+                        {left: '$$', right: '$$', display: true},
+                        {left: '$', right: '$', display: false},
+                        {left: '\\[', right: '\\]', display: true},
+                        {left: '\\(', right: '\\)', display: false}
+                    ],
+                    throwOnError: false
+                });
+            }
+
+            // Scroll content column to top
+            dynamicContent.scrollTop = 0;
+
+        } catch (error) {
+            console.error('Error loading content:', error);
+            // On error, navigate normally
+            window.location.href = url;
+        }
+    }
+
+    // Update selected state in the list
+    function updateSelectedState(url) {
+        list.querySelectorAll('li').forEach(li => {
+            const link = li.querySelector('a');
+            if (link && link.getAttribute('href') === url) {
+                li.classList.add('selected');
+            } else {
+                li.classList.remove('selected');
+            }
+        });
+    }
+
+    // Intercept clicks on list items
+    list.addEventListener('click', function(e) {
+        // Find the clicked link or li
+        const li = e.target.closest('li');
+        if (!li) return;
+
+        const link = li.querySelector('a');
+        if (!link) return;
+
+        const url = link.getAttribute('href');
+        if (!url) return;
+
+        // Prevent default navigation
+        e.preventDefault();
+
+        // Load content dynamically
+        loadContent(url);
+    });
+
+    // Handle browser back/forward navigation
+    window.addEventListener('popstate', function(e) {
+        if (e.state && e.state.url) {
+            loadContent(e.state.url, false);
+        } else {
+            // If no state, we're back at the list page
+            placeholder.style.display = 'block';
+            dynamicContent.style.display = 'none';
+            dynamicContent.innerHTML = '';
+            currentUrl = null;
+            updateSelectedState(null);
+        }
+    });
+
+    // Check if we should load initial content from URL
+    // This handles direct navigation to a note/post URL
+    const path = window.location.pathname;
+    const isListPage = path === '/notes/' || path === '/notes/index.html' ||
+                       path === '/blog.html' || path === '/blog';
+
+    if (!isListPage) {
+        // We're on an individual page, don't intercept
+        return;
+    }
+
+    // Store initial state
+    history.replaceState({ url: window.location.pathname }, '', window.location.pathname);
+
+    // Auto-select first visible item on page load
+    function selectFirstVisible() {
+        const listId = notesList ? 'notes-list' : 'post-list';
+        const firstVisible = document.querySelector('#' + listId + ' li:not([style*="display: none"])');
+        if (firstVisible) {
+            const link = firstVisible.querySelector('a');
+            if (link) {
+                window.loadContent(link.getAttribute('href'));
+            }
+        }
+    }
+
+    // Expose for use by filter/search functions
+    window.selectFirstVisible = selectFirstVisible;
+
+    // Select first item on initial load (temporarily disabled for debugging)
+    // selectFirstVisible();
+})();

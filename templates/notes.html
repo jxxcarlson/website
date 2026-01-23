@@ -57,26 +57,35 @@
 }
 </style>
 
-<div class="search-box">
-    <input type="text" id="search-input" placeholder="Search...">
-</div>
+<div class="two-column-container">
+    <div class="list-column">
+        <div class="search-box">
+            <input type="text" id="search-input" placeholder="Search...">
+        </div>
 
-<div class="tag-filters">
-    <button class="tag-btn active" data-tag="all">all</button>
-    $for(tagList)$
-    <button class="tag-btn" data-tag="$tag$">$tag$</button>
-    $endfor$
-    <button class="tag-btn random-btn">random</button>
-    <span class="doc-count"></span>
-</div>
+        <div class="tag-filters">
+            <button class="tag-btn active" data-tag="all">all</button>
+            $for(tagList)$
+            <button class="tag-btn" data-tag="$tag$">$tag$</button>
+            $endfor$
+            <button class="tag-btn random-btn">random</button>
+            <span class="doc-count"></span>
+        </div>
 
-<ul id="notes-list">
-    $for(notes)$
-        <li data-tags="$tags$" data-content="$content$">
-            <a href="$url$">$title$</a>
-        </li>
-    $endfor$
-</ul>
+        <ul id="notes-list">
+            $for(notes)$
+                <li data-tags="$tags$" data-content="$content$" data-url="$url$">
+                    <a href="$url$">$title$</a>
+                </li>
+            $endfor$
+        </ul>
+    </div>
+
+    <div class="content-column">
+        <div class="content-placeholder">Select a note to view</div>
+        <article class="dynamic-content" style="display: none;"></article>
+    </div>
+</div>
 
 <script>
 function updateCount() {
@@ -115,6 +124,7 @@ function filterItems() {
         li.style.display = (matchesTag && matchesSearch) ? '' : 'none';
     });
     updateCount();
+    if (window.selectFirstVisible) window.selectFirstVisible();
 }
 
 document.querySelectorAll('.tag-btn:not(.random-btn)').forEach(btn => {
@@ -169,6 +179,7 @@ document.querySelector('.random-btn').addEventListener('click', function() {
             list.prepend(selected[i]);
         }
         updateCount();
+        if (window.selectFirstVisible) window.selectFirstVisible();
     }
 });
 
@@ -181,6 +192,11 @@ if (h1 && searchBox) {
     h1.parentNode.insertBefore(titleRow, h1);
     titleRow.appendChild(h1);
     titleRow.appendChild(searchBox);
+}
+
+// Add two-column class to body on desktop
+if (window.matchMedia('(min-width: 1024px)').matches) {
+    document.body.classList.add('two-column-page');
 }
 
 filterItems();
