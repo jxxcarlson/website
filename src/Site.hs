@@ -55,12 +55,18 @@ formatZettelDate filename =
     in monthName month ++ " " ++ (if null dayNum then "0" else dayNum) ++ ", " ++ year
 
 -- | Extract title from first line of content
+-- If line starts with "# ", strip it (markdown heading)
 extractFirstLineTitle :: String -> String
 extractFirstLineTitle content =
     let contentLines = lines content
     in if not (null contentLines) && not (null (head contentLines))
-       then head contentLines
+       then stripMarkdownHeading (head contentLines)
        else "Untitled"
+  where
+    stripMarkdownHeading line
+        | "# " `isPrefixOf` line = drop 2 line
+        | "#" `isPrefixOf` line  = drop 1 line
+        | otherwise              = line
 
 -- | Generic route for archive entries: prefix/slug.html
 archiveToRoute :: String -> M.Map Identifier String -> Identifier -> FilePath

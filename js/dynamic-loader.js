@@ -143,6 +143,12 @@
     // Store initial state
     history.replaceState({ url: window.location.pathname }, '', window.location.pathname);
 
+    // Fix nav links to use absolute URLs (prevents issues after pushState)
+    document.querySelectorAll('nav a').forEach(link => {
+        const absoluteUrl = new URL(link.href).pathname;
+        link.setAttribute('href', absoluteUrl);
+    });
+
     // Auto-select first visible item on page load
     function selectFirstVisible() {
         const listId = notesList ? 'notes-list' : 'post-list';
