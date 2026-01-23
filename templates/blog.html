@@ -127,8 +127,8 @@ body::after {
         <ul id="post-list">
             $for(posts)$
                 <li data-tags="$tags$" data-content="$content$" data-url="$url$">
-                    <span class="post-date">$date$</span> &mdash;
                     <a href="$url$">$title$</a>
+                    <span class="post-date-small">$date$</span>
                 </li>
             $endfor$
         </ul>

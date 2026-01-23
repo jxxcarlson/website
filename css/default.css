@@ -366,6 +366,12 @@ p.par {
     .dynamic-content .nav-btn {
         display: none;
     }
+
+    .post-date-small {
+        display: block;
+        font-size: 0.75rem;
+        color: #888;
+    }
 }
 
 /* Mobile: hide content column, show normal layout */
