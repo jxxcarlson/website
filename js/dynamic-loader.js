@@ -20,6 +20,23 @@
 
     let currentUrl = null;
 
+    // Handle anchor link clicks within dynamic content (event delegation)
+    dynamicContent.addEventListener('click', function(e) {
+        const link = e.target.closest('a[href^="#"]');
+        if (!link) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        const targetId = link.getAttribute('href').substring(1);
+        if (!targetId) return;
+
+        const targetElement = dynamicContent.querySelector('#' + CSS.escape(targetId));
+        if (targetElement) {
+            targetElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+
     // Load content from a URL into the right pane (exposed globally)
     window.loadContent = async function loadContent(url, pushState = true) {
         try {
