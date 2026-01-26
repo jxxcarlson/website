@@ -77,14 +77,16 @@ archiveToRoute prefix titleMap ident =
 
 main :: IO ()
 main = do
-    -- Pre-scan archive files for #post, #diary, #memoirs, and #note tags
+    -- Pre-scan archive files for #post, #diary, #memoirs, #draft, and #note tags
     postMap <- scanArchiveForPosts "archive"
     diaryMap <- scanArchiveForTag "#diary" "archive"
     memoirsMap <- scanArchiveForTag "#memoirs" "archive"
+    draftsMap <- scanArchiveForTag "#draft" "archive"
     notesMap <- scanArchiveForTag "#note" "archive"
     let postFiles = M.keys postMap
         diaryFiles = M.keys diaryMap
         memoirsFiles = M.keys memoirsMap
+        draftsFiles = M.keys draftsMap
         noteFiles = M.keys notesMap
 
     -- Scan posts for content tags (#tag:xyz)
@@ -98,7 +100,7 @@ main = do
         allNoteTags = sort $ M.keys noteTagIndex
 
     -- Build the link map for internal links
-    linkMap <- buildLinkMap "archive" postMap diaryMap memoirsMap
+    linkMap <- buildLinkMap "archive" postMap diaryMap memoirsMap draftsMap
 
     -- Build navigation map for posts (prev/next links)
     regularPostFiles <- findMdFiles "content/posts"
@@ -107,7 +109,7 @@ main = do
 
     -- Build navigation map for notes (all archive files not matched by other rules)
     allArchiveFiles <- findTxtFiles "archive"
-    let archiveNoteFiles = filter (`notElem` (postFiles ++ diaryFiles ++ memoirsFiles)) (map fromFilePath allArchiveFiles)
+    let archiveNoteFiles = filter (`notElem` (postFiles ++ diaryFiles ++ memoirsFiles ++ draftsFiles)) (map fromFilePath allArchiveFiles)
     noteNavMap <- buildNoteNavMap archiveNoteFiles
 
     hakyll $ do
@@ -197,7 +199,15 @@ main = do
                 >>= loadAndApplyTemplate "templates/default.html" memoirsEntryCtx
                 >>= relativizeUrls
 
-        -- Archive notes that are NOT posts, diary entries, or memoirs
+        -- Drafts entries (archive notes with #draft tag) - MUST come before archive match
+        match (fromList draftsFiles) $ do
+            route $ customRoute (archiveToDraftsRoute draftsMap)
+            compile $ txtDraftsCompiler linkMap
+                >>= loadAndApplyTemplate "templates/post.html" draftsEntryCtx
+                >>= loadAndApplyTemplate "templates/default.html" draftsEntryCtx
+                >>= relativizeUrls
+
+        -- Archive notes that are NOT posts, diary entries, memoirs, or drafts
         match "archive/**.txt" $ do
             route $ setExtension "html"
             compile $ txtCompiler linkMap
@@ -263,6 +273,24 @@ main = do
                 makeItem ""
                     >>= loadAndApplyTemplate "templates/blog.html" memoirsIndexCtx
                     >>= loadAndApplyTemplate "templates/default.html" memoirsIndexCtx
+                    >>= relativizeUrls
+
+        -- Drafts index page
+        create ["drafts/index.html"] $ do
+            route idRoute
+            compile $ do
+                entries <- loadAll (fromList draftsFiles)
+                sortedEntries <- recentFirst' entries
+                let emptyTagCtx = field "tag" (return . itemBody)
+                    draftsIndexCtx =
+                        listField "posts" draftsEntryCtx (return sortedEntries) `mappend`
+                        listField "tagList" emptyTagCtx (return [])             `mappend`
+                        constField "title" "Drafts"                             `mappend`
+                        defaultContext
+
+                makeItem ""
+                    >>= loadAndApplyTemplate "templates/blog.html" draftsIndexCtx
+                    >>= loadAndApplyTemplate "templates/default.html" draftsIndexCtx
                     >>= relativizeUrls
 
         -- Archive page
@@ -485,6 +513,9 @@ diaryEntryCtx = archiveEntryCtx
 
 memoirsEntryCtx :: Context String
 memoirsEntryCtx = archiveEntryCtx
+
+draftsEntryCtx :: Context String
+draftsEntryCtx = archiveEntryCtx
 
 noteCtx :: Context String
 noteCtx = noteCtxWithNav M.empty
@@ -778,13 +809,17 @@ archiveToDiaryRoute = archiveToRoute "diary"
 archiveToMemoirsRoute :: M.Map Identifier String -> Identifier -> FilePath
 archiveToMemoirsRoute = archiveToRoute "memoirs"
 
+archiveToDraftsRoute :: M.Map Identifier String -> Identifier -> FilePath
+archiveToDraftsRoute = archiveToRoute "drafts"
+
 -- | Build a map from Zettelkasten ID to (URL, Title) for internal links
 buildLinkMap :: FilePath
              -> M.Map Identifier (Maybe String, String)  -- postMap
              -> M.Map Identifier String                   -- diaryMap
              -> M.Map Identifier String                   -- memoirsMap
+             -> M.Map Identifier String                   -- draftsMap
              -> IO LinkMap
-buildLinkMap dir postMap diaryMap memoirsMap = do
+buildLinkMap dir postMap diaryMap memoirsMap draftsMap = do
     files <- findTxtFiles dir
     results <- forM files $ \path -> do
         content <- readFile path
@@ -801,6 +836,8 @@ buildLinkMap dir postMap diaryMap memoirsMap = do
                        then "/" ++ archiveToDiaryRoute diaryMap ident
                        else if ident `M.member` memoirsMap
                             then "/" ++ archiveToMemoirsRoute memoirsMap ident
+                       else if ident `M.member` draftsMap
+                            then "/" ++ archiveToDraftsRoute draftsMap ident
                             else "/archive/" ++ filename ++ ".html"
 
         -- Only include files with valid Zettelkasten IDs (12 digits)
@@ -839,6 +876,9 @@ txtDiaryCompiler = txtTagCompiler "#diary"
 
 txtMemoirsCompiler :: LinkMap -> Compiler (Item String)
 txtMemoirsCompiler = txtTagCompiler "#memoirs"
+
+txtDraftsCompiler :: LinkMap -> Compiler (Item String)
+txtDraftsCompiler = txtTagCompiler "#draft"
 
 -- | Type alias for navigation map: Identifier -> (Maybe prevUrl, Maybe nextUrl)
 type NavMap = M.Map Identifier (Maybe String, Maybe String)
