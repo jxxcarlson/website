@@ -99,6 +99,11 @@ main = do
     let noteTagIndex = buildTagIndex noteTagMap
         allNoteTags = sort $ M.keys noteTagIndex
 
+    -- Scan drafts for content tags (#tag:xyz)
+    draftsTagMap <- scanArchiveForContentTags "archive" draftsFiles
+    let draftsTagIndex = buildTagIndex draftsTagMap
+        allDraftsTags = sort $ M.keys draftsTagIndex
+
     -- Build the link map for internal links
     linkMap <- buildLinkMap "archive" postMap diaryMap memoirsMap draftsMap
 
@@ -281,11 +286,14 @@ main = do
             compile $ do
                 entries <- loadAll (fromList draftsFiles)
                 sortedEntries <- recentFirst' entries
-                let emptyTagCtx = field "tag" (return . itemBody)
+                -- Create tag list items for buttons
+                draftsTagItems <- mapM makeItem allDraftsTags
+                let tagCtx = field "tag" (return . itemBody)
+                    draftsCtxWithTags = draftsCtxWithTagsF draftsTagMap
                     draftsIndexCtx =
-                        listField "posts" draftsEntryCtx (return sortedEntries) `mappend`
-                        listField "tagList" emptyTagCtx (return [])             `mappend`
-                        constField "title" "Drafts"                             `mappend`
+                        listField "posts" draftsCtxWithTags (return sortedEntries) `mappend`
+                        listField "tagList" tagCtx (return draftsTagItems)         `mappend`
+                        constField "title" "Drafts"                                `mappend`
                         defaultContext
 
                 makeItem ""
@@ -545,6 +553,19 @@ noteCtxWithTagsF tagMap =
     field "tags" getTags `mappend`
     field "content" getContent `mappend`
     noteCtx
+  where
+    getTags item = return $ unwords $ M.findWithDefault [] (itemIdentifier item) tagMap
+    getContent item = do
+        let path = toFilePath (itemIdentifier item)
+        content <- unsafeCompiler $ readFile path
+        return $ escapeHtmlAttr content
+
+-- | Drafts context with tags field for drafts page filtering
+draftsCtxWithTagsF :: M.Map Identifier [String] -> Context String
+draftsCtxWithTagsF tagMap =
+    field "tags" getTags `mappend`
+    field "content" getContent `mappend`
+    draftsEntryCtx
   where
     getTags item = return $ unwords $ M.findWithDefault [] (itemIdentifier item) tagMap
     getContent item = do

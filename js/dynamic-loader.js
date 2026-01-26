@@ -150,7 +150,10 @@
     // This handles direct navigation to a note/post URL
     const path = window.location.pathname;
     const isListPage = path === '/notes/' || path === '/notes/index.html' ||
-                       path === '/blog.html' || path === '/blog';
+                       path === '/blog.html' || path === '/blog' ||
+                       path === '/diary/' || path === '/diary/index.html' ||
+                       path === '/memoirs/' || path === '/memoirs/index.html' ||
+                       path === '/drafts/' || path === '/drafts/index.html';
 
     if (!isListPage) {
         // We're on an individual page, don't intercept
