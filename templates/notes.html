@@ -124,7 +124,15 @@ function filterItems() {
         li.style.display = (matchesTag && matchesSearch) ? '' : 'none';
     });
     updateCount();
+    storeFilteredNavigation();
     if (window.selectFirstVisible) window.selectFirstVisible();
+}
+
+// Store filtered URLs for navigation on individual note pages
+function storeFilteredNavigation() {
+    const visibleItems = Array.from(document.querySelectorAll('#notes-list li:not([style*="display: none"])'));
+    const urls = visibleItems.map(li => li.dataset.url).filter(u => u);
+    sessionStorage.setItem('filteredNoteUrls', JSON.stringify(urls));
 }
 
 document.querySelectorAll('.tag-btn:not(.random-btn)').forEach(btn => {
@@ -179,6 +187,7 @@ document.querySelector('.random-btn').addEventListener('click', function() {
             list.prepend(selected[i]);
         }
         updateCount();
+        storeFilteredNavigation();
         if (window.selectFirstVisible) window.selectFirstVisible();
     }
 });

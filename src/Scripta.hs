@@ -483,7 +483,7 @@ renderNormalImage imgPath block =
             ]
         (Nothing, Just _) ->
             [ "<div style=\"" ++ floatStyle ++ "\">" ++ linkedImg ++ "</div>" ]
-        (Nothing, Nothing) -> [linkedImg]
+        (Nothing, Nothing) -> ["<div>" ++ linkedImg ++ "</div>"]
 
 -- | Render a background image
 -- If opacity is specified, sets entire page background
