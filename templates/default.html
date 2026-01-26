@@ -111,31 +111,30 @@
         const prevIndex = (currentIndex + 1) % urls.length;
         const nextIndex = (currentIndex - 1 + urls.length) % urls.length;
 
-        // Update navigation buttons
-        const navNext = document.querySelector('.nav-next');
-        const navPrev = document.querySelector('.nav-prev');
+        // Update all navigation buttons (top and bottom)
+        document.querySelectorAll('.nav-next').forEach(navNext => {
+            if (navNext.tagName === 'A') {
+                navNext.href = urls[nextIndex];
+            } else if (navNext.tagName === 'SPAN') {
+                const link = document.createElement('a');
+                link.href = urls[nextIndex];
+                link.className = 'nav-btn nav-next';
+                link.innerHTML = navNext.innerHTML;
+                navNext.parentNode.replaceChild(link, navNext);
+            }
+        });
 
-        if (navNext && navNext.tagName === 'A') {
-            navNext.href = urls[nextIndex];
-        } else if (navNext && navNext.tagName === 'SPAN') {
-            // Convert disabled span to active link
-            const link = document.createElement('a');
-            link.href = urls[nextIndex];
-            link.className = 'nav-btn nav-next';
-            link.innerHTML = navNext.innerHTML;
-            navNext.parentNode.replaceChild(link, navNext);
-        }
-
-        if (navPrev && navPrev.tagName === 'A') {
-            navPrev.href = urls[prevIndex];
-        } else if (navPrev && navPrev.tagName === 'SPAN') {
-            // Convert disabled span to active link
-            const link = document.createElement('a');
-            link.href = urls[prevIndex];
-            link.className = 'nav-btn nav-prev';
-            link.innerHTML = navPrev.innerHTML;
-            navPrev.parentNode.replaceChild(link, navPrev);
-        }
+        document.querySelectorAll('.nav-prev').forEach(navPrev => {
+            if (navPrev.tagName === 'A') {
+                navPrev.href = urls[prevIndex];
+            } else if (navPrev.tagName === 'SPAN') {
+                const link = document.createElement('a');
+                link.href = urls[prevIndex];
+                link.className = 'nav-btn nav-prev';
+                link.innerHTML = navPrev.innerHTML;
+                navPrev.parentNode.replaceChild(link, navPrev);
+            }
+        });
     })();
     </script>
 </body>

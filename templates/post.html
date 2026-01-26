@@ -11,5 +11,10 @@
     </section>
     <footer class="post-footer">
         <p class="word-count">$wordcount$ words</p>
+        <div class="post-nav-row bottom-nav">
+            $if(nextUrl)$<a href="$nextUrl$" class="nav-btn nav-next">&#9664;</a>$else$<span class="nav-btn nav-disabled">&#9664;</span>$endif$
+            <span></span>
+            $if(prevUrl)$<a href="$prevUrl$" class="nav-btn nav-prev">&#9654;</a>$else$<span class="nav-btn nav-disabled">&#9654;</span>$endif$
+        </div>
     </footer>
 </article>

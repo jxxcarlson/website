@@ -372,6 +372,11 @@ p.par {
         display: none;
     }
 
+    /* Hide bottom navigation on desktop */
+    .bottom-nav {
+        display: none;
+    }
+
     .post-date-small {
         display: block;
         font-size: 0.75rem;
