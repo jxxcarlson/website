@@ -11,4 +11,5 @@ scripts:
   kill: pkill -f watch_and_deploy.sh
   wl: sh scripts/watch_local.sh &
   log: tail -f /tmp/watch_and_deploy.log
+  running: ps aux | grep watch_and_deploy | grep -v grepvr
 
