@@ -307,11 +307,11 @@ p.par {
     }
 
     .list-column {
-        position: sticky;
-        top: 2rem;
-        height: fit-content;
-        max-height: calc(100vh - 4rem);
-        overflow-y: auto;
+        display: flex;
+        flex-direction: column;
+        height: 100%;
+        max-height: calc(100vh - 12rem);
+        overflow: hidden;
         padding-right: 1rem;
     }
 
@@ -319,6 +319,8 @@ p.par {
         list-style: none;
         padding-left: 0;
         margin: 0;
+        flex: 1;
+        overflow-y: auto;
     }
 
     .list-column li {
