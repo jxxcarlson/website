@@ -9,6 +9,7 @@ import Text.Pandoc.Options
 import Scripta (processScripta, LinkMap)
 import System.Directory (listDirectory, doesDirectoryExist)
 import System.FilePath ((</>), takeExtension, takeBaseName, takeFileName, dropExtension, replaceExtension)
+import System.Posix.Files (getFileStatus, modificationTime)
 import Control.Monad (filterM, forM)
 import Data.List (isPrefixOf, isInfixOf, find, dropWhileEnd, sortBy, sort)
 import Data.Char (isSpace)
@@ -24,6 +25,13 @@ escapeHtmlAttr = concatMap escapeChar
     escapeChar '"' = "&quot;"
     escapeChar '\n' = " "
     escapeChar c = [c]
+
+-- | Get file modification time as Unix timestamp string
+getModTime :: FilePath -> IO String
+getModTime path = do
+    status <- getFileStatus path
+    let mtime = modificationTime status
+    return $ show (round (realToFrac mtime :: Double) :: Integer)
 
 -- | Strip HTML tags from content
 stripHtmlTags :: String -> String
@@ -445,6 +453,7 @@ combinedPostCtxWithTags :: M.Map Identifier [String] -> Context String
 combinedPostCtxWithTags tagMap =
     field "tags" getTags `mappend`
     field "content" getContent `mappend`
+    field "mtime" getMtime `mappend`
     combinedPostCtx
   where
     getTags item = return $ unwords $ M.findWithDefault [] (itemIdentifier item) tagMap
@@ -452,6 +461,10 @@ combinedPostCtxWithTags tagMap =
         let path = toFilePath (itemIdentifier item)
         content <- unsafeCompiler $ readFile path
         return $ escapeHtmlAttr content
+    getMtime item = do
+        let path = toFilePath (itemIdentifier item)
+        mtime <- unsafeCompiler $ getModTime path
+        return mtime
 
 -- | Sort items by date, handling both regular posts and archive posts
 recentFirst' :: [Item a] -> Compiler [Item a]
@@ -501,6 +514,7 @@ archiveEntryCtx =
     field "title" extractTitle `mappend`
     field "wordcount" wordCount `mappend`
     field "content" getContent `mappend`
+    field "mtime" getMtime `mappend`
     constField "tags" ""       `mappend`
     defaultContext
   where
@@ -509,6 +523,10 @@ archiveEntryCtx =
         let path = toFilePath (itemIdentifier item)
         content <- unsafeCompiler $ readFile path
         return $ escapeHtmlAttr content
+    getMtime item = do
+        let path = toFilePath (itemIdentifier item)
+        mtime <- unsafeCompiler $ getModTime path
+        return mtime
     extractDate item = return $ formatZettelDate $ takeBaseName' $ toFilePath (itemIdentifier item)
     extractTitle item = do
         let path = toFilePath (itemIdentifier item)
@@ -552,6 +570,7 @@ noteCtxWithTagsF :: M.Map Identifier [String] -> Context String
 noteCtxWithTagsF tagMap =
     field "tags" getTags `mappend`
     field "content" getContent `mappend`
+    field "mtime" getMtime `mappend`
     noteCtx
   where
     getTags item = return $ unwords $ M.findWithDefault [] (itemIdentifier item) tagMap
@@ -559,12 +578,17 @@ noteCtxWithTagsF tagMap =
         let path = toFilePath (itemIdentifier item)
         content <- unsafeCompiler $ readFile path
         return $ escapeHtmlAttr content
+    getMtime item = do
+        let path = toFilePath (itemIdentifier item)
+        mtime <- unsafeCompiler $ getModTime path
+        return mtime
 
 -- | Drafts context with tags field for drafts page filtering
 draftsCtxWithTagsF :: M.Map Identifier [String] -> Context String
 draftsCtxWithTagsF tagMap =
     field "tags" getTags `mappend`
     field "content" getContent `mappend`
+    field "mtime" getMtime `mappend`
     draftsEntryCtx
   where
     getTags item = return $ unwords $ M.findWithDefault [] (itemIdentifier item) tagMap
@@ -572,6 +596,10 @@ draftsCtxWithTagsF tagMap =
         let path = toFilePath (itemIdentifier item)
         content <- unsafeCompiler $ readFile path
         return $ escapeHtmlAttr content
+    getMtime item = do
+        let path = toFilePath (itemIdentifier item)
+        mtime <- unsafeCompiler $ getModTime path
+        return mtime
 
 txtCompiler :: LinkMap -> Compiler (Item String)
 txtCompiler linkMap = do

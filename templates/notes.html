@@ -55,6 +55,34 @@
     color: #888;
     margin-left: 0.5rem;
 }
+.sort-controls {
+    margin-top: 0.5rem;
+    margin-bottom: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+.sort-label {
+    font-size: 0.85rem;
+    color: #666;
+}
+.sort-btn {
+    background: #f5f5f5;
+    border: 1px solid #ddd;
+    padding: 0.2rem 0.5rem;
+    cursor: pointer;
+    border-radius: 3px;
+    font-size: 0.85rem;
+    color: #555;
+}
+.sort-btn.active {
+    background: #0066cc;
+    color: white;
+    border-color: #0066cc;
+}
+.sort-btn:hover:not(.active) {
+    background: #eee;
+}
 </style>
 
 <div class="two-column-container">
@@ -72,9 +100,16 @@
             <span class="doc-count"></span>
         </div>
 
+        <div class="sort-controls">
+            <span class="sort-label">Sort:</span>
+            <button class="sort-btn active" data-sort="created">Created</button>
+            <button class="sort-btn" data-sort="modified">Modified</button>
+            <button class="sort-btn" data-sort="alpha">A-Z</button>
+        </div>
+
         <ul id="notes-list">
             $for(notes)$
-                <li data-tags="$tags$" data-content="$content$" data-url="$url$">
+                <li data-tags="$tags$" data-content="$content$" data-url="$url$" data-mtime="$mtime$" data-title="$title$">
                     <a href="$url$">$title$</a>
                 </li>
             $endfor$
@@ -135,6 +170,64 @@ function storeFilteredNavigation() {
     sessionStorage.setItem('filteredNoteUrls', JSON.stringify(urls));
 }
 
+// Store original creation order (items are already sorted by creation date server-side)
+document.querySelectorAll('#notes-list li').forEach((li, index) => {
+    li.dataset.createdIndex = index;
+});
+
+// Current sort state
+let currentSort = 'created';
+
+// Strip leading articles for alphabetical sorting
+function stripArticles(title) {
+    return title.replace(/^(a |an |the )/i, '').toLowerCase();
+}
+
+// Sort items based on current sort mode
+function sortItems() {
+    const list = document.getElementById('notes-list');
+    const items = Array.from(list.querySelectorAll('li'));
+
+    items.sort((a, b) => {
+        switch (currentSort) {
+            case 'created':
+                // Original order (lowest index = most recent)
+                return parseInt(a.dataset.createdIndex) - parseInt(b.dataset.createdIndex);
+            case 'modified':
+                // Higher mtime = more recently modified, so reverse
+                return parseInt(b.dataset.mtime || 0) - parseInt(a.dataset.mtime || 0);
+            case 'alpha':
+                // Alphabetical by title, ignoring articles
+                const titleA = stripArticles(a.dataset.title || a.textContent);
+                const titleB = stripArticles(b.dataset.title || b.textContent);
+                return titleA.localeCompare(titleB);
+            default:
+                return 0;
+        }
+    });
+
+    // Reorder DOM elements
+    items.forEach(item => list.appendChild(item));
+
+    // Reapply filter to maintain visibility state
+    filterItems();
+}
+
+// Sort button handlers
+document.querySelectorAll('.sort-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        // Deactivate random button if active
+        document.querySelector('.random-btn').classList.remove('active');
+
+        // Update active state
+        document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+
+        currentSort = this.dataset.sort;
+        sortItems();
+    });
+});
+
 document.querySelectorAll('.tag-btn:not(.random-btn)').forEach(btn => {
     btn.addEventListener('click', function() {
         document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
@@ -149,6 +242,7 @@ document.querySelector('.random-btn').addEventListener('click', function() {
     const tag = getActiveTag();
     const searchTerms = getSearchTerms();
     document.querySelectorAll('.tag-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
     this.classList.add('active');
     // Get all items matching current tag/search filter
     const allItems = Array.from(document.querySelectorAll('#notes-list li'));
