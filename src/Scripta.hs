@@ -127,6 +127,8 @@ parseInlineElement linkMap s = do
                 in Just ("<a href=\"" ++ url ++ "\" target=\"_blank\" rel=\"noopener noreferrer\">" ++ label ++ "</a>", rest)
             _ -> Nothing
         "par" -> Just ("<p class=\"par\"></p>", rest)
+        "box" -> Just ("<span class=\"checkbox\">☐</span>", rest)
+        "cbox" -> Just ("<span class=\"checkbox checked\">☑</span>", rest)
         _ -> Nothing
 
 -- | Parse words, treating quoted strings as single words

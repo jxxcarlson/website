@@ -36,21 +36,62 @@ Development server runs on port 8000. Generated site outputs to `_site/`.
 
 ### Scripta Markup Language
 
-Block elements (standalone lines):
-- `[image filename]`, `[slideshow images]`, `[pdf filename]`
-- `[audio filename title]`, `[video filename]`
-- `[prog Title Filename]` - embed from /prog directory
-- `[equation] ... [/equation]` - LaTeX math block
-- `[theorem Title] ... [/theorem]`, `[quotation] ... [/quotation]`
-- `[indent] ... [/indent]`, `[center] ... [/center]`
-- `[vspace N]`, `[hide]`
+Block elements use pipe syntax (`| blocktype`). Content follows on subsequent lines:
+
+```
+| image width:300 caption:My Photo
+photo.webp
+
+| slideshow expandable width:600
+img1.webp | Caption one
+img2.webp | Caption two
+
+| equation
+\int_0^\infty e^{-x^2} dx = \frac{\sqrt{\pi}}{2}
+
+| theorem (Euclid)
+There are infinitely many primes.
+
+| quotation title:Lincoln
+Four score and seven years ago...
+
+| indent
+This text is indented by 2em (default)
+
+| indent 40
+This text is indented by 40px
+
+| center
+Centered text
+
+| vspace 20
+(inserts 20px vertical space)
+
+| hide
+Content that won't render
+
+| audio title:My Song
+song.m4a
+
+| video width:640 height:360
+https://vimeo.com/12345
+
+| prog title:My App width:600 height:400
+app.html
+
+| pdf width:100% height:600px
+document.pdf
+```
 
 Inline elements (within text):
 - `[i text]`, `[b text]`, `[u text]` - italic, bold, underline
 - `[ilink ZETTELID]` or `[ilink ZETTELID "custom text"]` - internal links
+- `[[ZETTELID]]` or `[[ZETTELID custom text]]` - wiki-style links
 - `[link Label URL]` - external links
 - `[prog Title File]` - inline program link
-- `[hrule]`, `[par]`
+- `[hrule]`, `[hrule 100]` - horizontal rule (optional width in px)
+- `[par]` - paragraph break
+- `[box]`, `[cbox]` - empty checkbox ☐, checked checkbox ☑
 
 ### Content Types
 
