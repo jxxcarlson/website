@@ -75,8 +75,58 @@
 
     <main>
         <h1>$title$</h1>
+        <nav id="toc" class="table-of-contents" style="display:none;"></nav>
         $body$
     </main>
+    <script>
+    // Auto-generate table of contents from h2/h3 headers
+    (function() {
+        const main = document.querySelector('main');
+        const toc = document.getElementById('toc');
+        if (!main || !toc) return;
+
+        const headers = main.querySelectorAll('h2, h3');
+        if (headers.length < 2) return; // Only show TOC if 2+ headers
+
+        const list = document.createElement('ul');
+        let currentH2Item = null;
+        let currentSublist = null;
+
+        headers.forEach((header, index) => {
+            // Ensure header has an ID for linking
+            if (!header.id) {
+                header.id = 'section-' + index;
+            }
+
+            const li = document.createElement('li');
+            const link = document.createElement('a');
+            link.href = '#' + header.id;
+            link.textContent = header.textContent;
+
+            if (header.tagName === 'H2') {
+                li.appendChild(link);
+                list.appendChild(li);
+                currentH2Item = li;
+                currentSublist = null;
+            } else if (header.tagName === 'H3') {
+                if (!currentSublist) {
+                    currentSublist = document.createElement('ul');
+                    if (currentH2Item) {
+                        currentH2Item.appendChild(currentSublist);
+                    } else {
+                        list.appendChild(currentSublist);
+                    }
+                }
+                li.appendChild(link);
+                currentSublist.appendChild(li);
+            }
+        });
+
+        toc.innerHTML = '<strong>Contents</strong>';
+        toc.appendChild(list);
+        toc.style.display = 'block';
+    })();
+    </script>
 
     <footer>
         <p>Built with <a href="https://jaspervdj.be/hakyll/">Hakyll</a></p>
