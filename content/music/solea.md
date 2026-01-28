@@ -12,3 +12,8 @@ solea.m4a
 
 | pdf
 solea.pdf
+
+<div class="page-nav">
+<a href="/music/ether.html">← Previous</a>
+<a href="/music/waltz.html">Next →</a>
+</div>

@@ -323,6 +323,29 @@ p.par {
     color: #333;
 }
 
+/* Page navigation (prev/next) for music, etc. */
+.page-nav {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 2rem;
+    padding-top: 1rem;
+    border-top: 1px solid #eee;
+}
+
+.page-nav a {
+    padding: 0.3rem 0.75rem;
+    border-radius: 3px;
+    text-decoration: none;
+    font-size: 0.9rem;
+    background: #e8e8e8;
+    color: #555;
+}
+
+.page-nav a:hover {
+    background: #ddd;
+    color: #333;
+}
+
 /* Two-column layout for Notes and Blog pages */
 @media (min-width: 800px) {
     body.two-column-page {

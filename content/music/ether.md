@@ -14,3 +14,8 @@ Ether_audio_only.mov
 
 | pdf
 ether.pdf
+
+<div class="page-nav">
+<a href="/music/waltz.html">← Previous</a>
+<a href="/music/solea.html">Next →</a>
+</div>
