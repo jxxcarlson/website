@@ -157,6 +157,8 @@ body::after {
             <button class="sort-btn active" data-sort="created">Created</button>
             <button class="sort-btn" data-sort="modified">Modified</button>
             <button class="sort-btn" data-sort="alpha">A-Z</button>
+            <button class="sort-btn" data-sort="seq-asc">Seq&#8593;</button>
+            <button class="sort-btn" data-sort="seq-desc">Seq&#8595;</button>
         </div>
 
         <ul id="post-list">
@@ -224,8 +226,15 @@ function storeFilteredNavigation() {
 }
 
 // Store original creation order (items are already sorted by creation date server-side)
+// Also extract sequence property from content if present
 document.querySelectorAll('#post-list li').forEach((li, index) => {
     li.dataset.createdIndex = index;
+    // Extract sequence:N from content
+    const content = li.dataset.content || '';
+    const seqMatch = content.match(/sequence:(\d+)/);
+    if (seqMatch) {
+        li.dataset.seq = seqMatch[1];
+    }
 });
 
 // Current sort state
@@ -254,6 +263,16 @@ function sortItems() {
                 const titleA = stripArticles(a.dataset.title || a.textContent);
                 const titleB = stripArticles(b.dataset.title || b.textContent);
                 return titleA.localeCompare(titleB);
+            case 'seq-asc':
+                // Sequence ascending (1, 2, 3...), items without sequence go to end
+                const seqA = a.dataset.seq ? parseInt(a.dataset.seq) : Infinity;
+                const seqB = b.dataset.seq ? parseInt(b.dataset.seq) : Infinity;
+                return seqA - seqB;
+            case 'seq-desc':
+                // Sequence descending (3, 2, 1...), items without sequence go to end
+                const seqAd = a.dataset.seq ? parseInt(a.dataset.seq) : -Infinity;
+                const seqBd = b.dataset.seq ? parseInt(b.dataset.seq) : -Infinity;
+                return seqBd - seqAd;
             default:
                 return 0;
         }

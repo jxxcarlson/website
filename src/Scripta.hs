@@ -129,6 +129,9 @@ parseInlineElement linkMap s = do
         "par" -> Just ("<p class=\"par\"></p>", rest)
         "box" -> Just ("<span class=\"checkbox\">☐</span>", rest)
         "cbox" -> Just ("<span class=\"checkbox checked\">☑</span>", rest)
+        "cite" -> case parts of
+            ["cite", label] -> Just (renderCite label, rest)
+            _ -> Nothing
         _ -> Nothing
 
 -- | Parse words, treating quoted strings as single words
@@ -186,6 +189,12 @@ renderInlineLink linkMap zettelId customText =
             let url = "/archive/" ++ zettelId ++ ".html"
                 linkText = fromMaybe zettelId customText
             in "<a href=\"" ++ url ++ "\" class=\"internal-link broken\">" ++ linkText ++ "</a>"
+
+-- | Render citation link
+-- [cite WF1977] renders as clickable [WF1977] that scrolls to the bibitem
+renderCite :: String -> String
+renderCite label =
+    "<a href=\"#bib-" ++ label ++ "\" class=\"citation\" data-cite=\"" ++ label ++ "\">[" ++ label ++ "]</a>"
 
 -- | Collect lines belonging to a block (non-empty lines after the header)
 spanBlock :: [String] -> ([String], [String])
@@ -286,6 +295,8 @@ renderBlock linkMap block = case blockType block of
     "theorem"   -> renderTheorem linkMap block
     "quotation" -> renderQuotation linkMap block
     "indent"    -> renderIndent linkMap block
+    "bibitem"   -> renderBibitem linkMap block
+    "numbered-sections" -> renderNumberedSections linkMap block
     "hide"      -> []  -- Hidden content, renders nothing
     _ -> ["<!-- Unknown Scripta block: " ++ blockType block ++ " -->"]
 
@@ -363,6 +374,37 @@ renderQuotation linkMap block =
     in titleHtml ++
        [ "<div class=\"quotation\">"
        , trim content
+       , "</div>"
+       ]
+
+-- | Render a bibliography item
+-- Syntax: | bibitem WF1977
+--         Woese & Fox (1977), "Phylogenetic structure..."
+-- Renders as: [WF1977] Woese & Fox (1977), "Phylogenetic structure..."
+-- with an anchor for citations to link to
+renderBibitem :: LinkMap -> Block -> [String]
+renderBibitem linkMap block =
+    let label = case blockArgs block of
+            (l:_) -> l
+            []    -> "?"
+        content = trim $ processBlockContent linkMap block
+    in [ "<div class=\"bibitem\" id=\"bib-" ++ label ++ "\">"
+       , "<span class=\"bibitem-label\">[" ++ label ++ "]</span> " ++ content
+       , "</div>"
+       ]
+
+-- | Render numbered sections block
+-- Syntax: | numbered-sections
+--         ## Section 1
+--         content...
+--         ### Subsection 1.1
+--         more content...
+-- Wraps content in a div that enables automatic section numbering
+renderNumberedSections :: LinkMap -> Block -> [String]
+renderNumberedSections linkMap block =
+    let content = processBlockContent linkMap block
+    in [ "<div class=\"numbered-sections\">"
+       , content
        , "</div>"
        ]
 

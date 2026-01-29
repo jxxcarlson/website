@@ -152,7 +152,47 @@
         if (e.target === this) closeLightbox();
     });
     document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape') closeLightbox();
+        if (e.key === 'Escape') {
+            closeLightbox();
+            returnFromCitation();
+        }
+    });
+    </script>
+    <!-- Citation/bibliography navigation -->
+    <script>
+    var citationReturnPosition = null;
+    var highlightedBibitem = null;
+
+    function returnFromCitation() {
+        if (citationReturnPosition !== null) {
+            window.scrollTo({ top: citationReturnPosition, behavior: 'smooth' });
+            citationReturnPosition = null;
+        }
+        if (highlightedBibitem) {
+            highlightedBibitem.classList.remove('highlighted');
+            highlightedBibitem = null;
+        }
+    }
+
+    document.addEventListener('click', function(e) {
+        var citation = e.target.closest('.citation');
+        if (citation) {
+            e.preventDefault();
+            // Save current scroll position for ESC return
+            citationReturnPosition = window.scrollY;
+            // Clear previous highlight
+            if (highlightedBibitem) {
+                highlightedBibitem.classList.remove('highlighted');
+            }
+            // Find and highlight the bibitem
+            var targetId = citation.getAttribute('href').substring(1);
+            var bibitem = document.getElementById(targetId);
+            if (bibitem) {
+                bibitem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                bibitem.classList.add('highlighted');
+                highlightedBibitem = bibitem;
+            }
+        }
     });
     </script>
     <script src="/js/dynamic-loader.js"></script>

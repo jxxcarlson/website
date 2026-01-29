@@ -49,6 +49,28 @@ h1, h2, h3 {
     font-weight: normal;
 }
 
+/* Section numbering - opt-in with .numbered-sections on main or article */
+.numbered-sections {
+    counter-reset: section;
+}
+
+.numbered-sections h2 {
+    counter-reset: subsection;
+    counter-increment: section;
+}
+
+.numbered-sections h2::before {
+    content: counter(section) ". ";
+}
+
+.numbered-sections h3 {
+    counter-increment: subsection;
+}
+
+.numbered-sections h3::before {
+    content: counter(section) "." counter(subsection) " ";
+}
+
 h1 {
     font-size: 2rem;
 }
@@ -299,6 +321,33 @@ figcaption {
 /* Paragraph break element [par] */
 p.par {
     margin: 0.25rem 0;
+}
+
+/* Citations and bibliography */
+.citation {
+    color: #0066cc;
+    text-decoration: none;
+    cursor: pointer;
+}
+
+.citation:hover {
+    text-decoration: underline;
+}
+
+.bibitem {
+    margin: 0.5rem 0;
+    padding: 0.5rem;
+    border-radius: 3px;
+    transition: background-color 0.3s ease;
+}
+
+.bibitem.highlighted {
+    background-color: #fff3cd;
+}
+
+.bibitem-label {
+    font-weight: bold;
+    color: #0066cc;
 }
 
 /* Post navigation buttons */
