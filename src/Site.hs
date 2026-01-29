@@ -85,16 +85,18 @@ archiveToRoute prefix titleMap ident =
 
 main :: IO ()
 main = do
-    -- Pre-scan archive files for #post, #diary, #memoirs, #draft, and #note tags
+    -- Pre-scan archive files for #post, #diary, #memoirs, #draft, #reading, and #note tags
     postMap <- scanArchiveForPosts "archive"
     diaryMap <- scanArchiveForTag "#diary" "archive"
     memoirsMap <- scanArchiveForTag "#memoirs" "archive"
     draftsMap <- scanArchiveForTag "#draft" "archive"
+    readingMap <- scanArchiveForTag "#reading" "archive"
     notesMap <- scanArchiveForTag "#note" "archive"
     let postFiles = M.keys postMap
         diaryFiles = M.keys diaryMap
         memoirsFiles = M.keys memoirsMap
         draftsFiles = M.keys draftsMap
+        readingFiles = M.keys readingMap
         noteFiles = M.keys notesMap
 
     -- Scan posts for content tags (#tag:xyz)
@@ -113,7 +115,7 @@ main = do
         allDraftsTags = sort $ M.keys draftsTagIndex
 
     -- Build the link map for internal links
-    linkMap <- buildLinkMap "archive" postMap diaryMap memoirsMap draftsMap
+    linkMap <- buildLinkMap "archive" postMap diaryMap memoirsMap draftsMap readingMap
 
     -- Build navigation map for posts (prev/next links)
     regularPostFiles <- findMdFiles "content/posts"
@@ -122,7 +124,7 @@ main = do
 
     -- Build navigation map for notes (all archive files not matched by other rules)
     allArchiveFiles <- findTxtFiles "archive"
-    let archiveNoteFiles = filter (`notElem` (postFiles ++ diaryFiles ++ memoirsFiles ++ draftsFiles)) (map fromFilePath allArchiveFiles)
+    let archiveNoteFiles = filter (`notElem` (postFiles ++ diaryFiles ++ memoirsFiles ++ draftsFiles ++ readingFiles)) (map fromFilePath allArchiveFiles)
     noteNavMap <- buildNoteNavMap archiveNoteFiles
 
     hakyll $ do
@@ -220,7 +222,15 @@ main = do
                 >>= loadAndApplyTemplate "templates/default.html" draftsEntryCtx
                 >>= relativizeUrls
 
-        -- Archive notes that are NOT posts, diary entries, memoirs, or drafts
+        -- Reading entries (archive notes with #reading tag) - MUST come before archive match
+        match (fromList readingFiles) $ do
+            route $ customRoute (archiveToReadingRoute readingMap)
+            compile $ txtReadingCompiler linkMap
+                >>= loadAndApplyTemplate "templates/post.html" readingEntryCtx
+                >>= loadAndApplyTemplate "templates/default.html" readingEntryCtx
+                >>= relativizeUrls
+
+        -- Archive notes that are NOT posts, diary, memoirs, drafts, or reading
         match "archive/**.txt" $ do
             route $ setExtension "html"
             compile $ txtCompiler linkMap
@@ -307,6 +317,24 @@ main = do
                 makeItem ""
                     >>= loadAndApplyTemplate "templates/blog.html" draftsIndexCtx
                     >>= loadAndApplyTemplate "templates/default.html" draftsIndexCtx
+                    >>= relativizeUrls
+
+        -- Reading index page
+        create ["reading/index.html"] $ do
+            route idRoute
+            compile $ do
+                entries <- loadAll (fromList readingFiles)
+                sortedEntries <- recentFirst' entries
+                let emptyTagCtx = field "tag" (return . itemBody)
+                    readingIndexCtx =
+                        listField "posts" readingEntryCtx (return sortedEntries) `mappend`
+                        listField "tagList" emptyTagCtx (return [])              `mappend`
+                        constField "title" "Reading"                             `mappend`
+                        defaultContext
+
+                makeItem ""
+                    >>= loadAndApplyTemplate "templates/blog.html" readingIndexCtx
+                    >>= loadAndApplyTemplate "templates/default.html" readingIndexCtx
                     >>= relativizeUrls
 
         -- Archive page
@@ -542,6 +570,9 @@ memoirsEntryCtx = archiveEntryCtx
 
 draftsEntryCtx :: Context String
 draftsEntryCtx = archiveEntryCtx
+
+readingEntryCtx :: Context String
+readingEntryCtx = archiveEntryCtx
 
 noteCtx :: Context String
 noteCtx = noteCtxWithNav M.empty
@@ -861,14 +892,18 @@ archiveToMemoirsRoute = archiveToRoute "memoirs"
 archiveToDraftsRoute :: M.Map Identifier String -> Identifier -> FilePath
 archiveToDraftsRoute = archiveToRoute "drafts"
 
+archiveToReadingRoute :: M.Map Identifier String -> Identifier -> FilePath
+archiveToReadingRoute = archiveToRoute "reading"
+
 -- | Build a map from Zettelkasten ID to (URL, Title) for internal links
 buildLinkMap :: FilePath
              -> M.Map Identifier (Maybe String, String)  -- postMap
              -> M.Map Identifier String                   -- diaryMap
              -> M.Map Identifier String                   -- memoirsMap
              -> M.Map Identifier String                   -- draftsMap
+             -> M.Map Identifier String                   -- readingMap
              -> IO LinkMap
-buildLinkMap dir postMap diaryMap memoirsMap draftsMap = do
+buildLinkMap dir postMap diaryMap memoirsMap draftsMap readingMap = do
     files <- findTxtFiles dir
     results <- forM files $ \path -> do
         content <- readFile path
@@ -887,6 +922,8 @@ buildLinkMap dir postMap diaryMap memoirsMap draftsMap = do
                             then "/" ++ archiveToMemoirsRoute memoirsMap ident
                        else if ident `M.member` draftsMap
                             then "/" ++ archiveToDraftsRoute draftsMap ident
+                       else if ident `M.member` readingMap
+                            then "/" ++ archiveToReadingRoute readingMap ident
                             else "/archive/" ++ filename ++ ".html"
 
         -- Only include files with valid Zettelkasten IDs (12 digits)
@@ -928,6 +965,9 @@ txtMemoirsCompiler = txtTagCompiler "#memoirs"
 
 txtDraftsCompiler :: LinkMap -> Compiler (Item String)
 txtDraftsCompiler = txtTagCompiler "#draft"
+
+txtReadingCompiler :: LinkMap -> Compiler (Item String)
+txtReadingCompiler = txtTagCompiler "#reading"
 
 -- | Type alias for navigation map: Identifier -> (Maybe prevUrl, Maybe nextUrl)
 type NavMap = M.Map Identifier (Maybe String, Maybe String)
