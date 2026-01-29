@@ -80,18 +80,22 @@
         $body$
     </main>
     <script>
-    // Auto-generate table of contents from h2/h3 headers
+    // Auto-generate table of contents from h1/h2/h3 headers
+    // Skips the first h1 (page title), includes subsequent h1s as top-level
     (function() {
         const main = document.querySelector('main');
         const toc = document.getElementById('toc');
         if (!main || !toc) return;
 
-        const headers = main.querySelectorAll('h2, h3');
+        const allHeaders = main.querySelectorAll('h1, h2, h3');
+        // Skip the first h1 (page title)
+        const headers = Array.from(allHeaders).filter((h, i) => !(h.tagName === 'H1' && i === 0));
         if (headers.length < 2) return; // Only show TOC if 2+ headers
 
         const list = document.createElement('ul');
-        let currentH2Item = null;
+        let currentTopItem = null;
         let currentSublist = null;
+        let currentSubSublist = null;
 
         headers.forEach((header, index) => {
             // Ensure header has an ID for linking
@@ -104,22 +108,55 @@
             link.href = '#' + header.id;
             link.textContent = header.textContent;
 
-            if (header.tagName === 'H2') {
+            if (header.tagName === 'H1') {
+                // Top level
                 li.appendChild(link);
                 list.appendChild(li);
-                currentH2Item = li;
+                currentTopItem = li;
                 currentSublist = null;
-            } else if (header.tagName === 'H3') {
-                if (!currentSublist) {
-                    currentSublist = document.createElement('ul');
-                    if (currentH2Item) {
-                        currentH2Item.appendChild(currentSublist);
-                    } else {
-                        list.appendChild(currentSublist);
+                currentSubSublist = null;
+            } else if (header.tagName === 'H2') {
+                if (currentTopItem) {
+                    // Nested under h1
+                    if (!currentSublist) {
+                        currentSublist = document.createElement('ul');
+                        currentTopItem.appendChild(currentSublist);
                     }
+                    li.appendChild(link);
+                    currentSublist.appendChild(li);
+                    currentSubSublist = null;
+                } else {
+                    // No h1 parent, treat as top level
+                    li.appendChild(link);
+                    list.appendChild(li);
+                    currentTopItem = li;
+                    currentSublist = null;
                 }
-                li.appendChild(link);
-                currentSublist.appendChild(li);
+            } else if (header.tagName === 'H3') {
+                if (currentSublist) {
+                    // Nested under h2
+                    const parentLi = currentSublist.lastElementChild;
+                    if (parentLi) {
+                        if (!currentSubSublist || currentSubSublist.parentElement !== parentLi) {
+                            currentSubSublist = document.createElement('ul');
+                            parentLi.appendChild(currentSubSublist);
+                        }
+                        li.appendChild(link);
+                        currentSubSublist.appendChild(li);
+                    }
+                } else if (currentTopItem) {
+                    // No h2, nest directly under h1
+                    if (!currentSublist) {
+                        currentSublist = document.createElement('ul');
+                        currentTopItem.appendChild(currentSublist);
+                    }
+                    li.appendChild(link);
+                    currentSublist.appendChild(li);
+                } else {
+                    // Fallback: add to main list
+                    li.appendChild(link);
+                    list.appendChild(li);
+                }
             }
         });
 

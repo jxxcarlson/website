@@ -107,6 +107,8 @@ parseInlineElement linkMap s = do
             Just ("<strong>" ++ processInline linkMap argContent ++ "</strong>", rest)
         "u" | not (null argContent) ->
             Just ("<u>" ++ processInline linkMap argContent ++ "</u>", rest)
+        "strike" | not (null argContent) ->
+            Just ("<s>" ++ processInline linkMap argContent ++ "</s>", rest)
         -- Other elements use parsed arguments
         "prog" -> case parts of
             (_:title:filename:_) -> Just (renderInlineProg title filename, rest)

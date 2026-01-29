@@ -2,20 +2,54 @@
 title: jxxcarlson's website
 ---
 
-| image width:400 caption:Jim Carlson float:left
+| image width:400 caption:Jim Carlson, somewhere underground in New York City float:left
 jim.webp
 
-From Lewiston, Idaho.  BS in Mathematics from the University of Idaho;
-Ph.D. under the direction of Phillip Griffiths at Princeton University;
-Professor of Mathematics, University of Utah; President, Clay Mathematics Institute.
-Member, BICMR (Beijing International Center for Mathematical Research). 
+[ b Signposts.] I'm from Lewiston, Idaho.  BS in Mathematics from the University of Idaho.
+Ph.D. under the direction of Phillip Griffiths at Princeton University.
+Professor of Mathematics, University of Utah where I was department chair 1995-2002.
+Last job, (2003-2012) President, Clay Mathematics Institute.
+ 
 
-Now retired, living in New York City, doing all those things I never had 
-time for before. (Love it!).
+[b Now.] I'm now retired, living in New York City, doing all those things I had 
+little time for before. (Love it!). From 2012-2025 I went to BICMR (Beijing International Center for Mathematical Research)
+most years for a month to teach — usually algebraic geometry and Hodge theory, but occasionally, audaciously
+and perhaps foolishly, a little bit of physics and type theory. The students were a delight to teach.
 
-<< That's me on the left, somewhere in the subway system of New York City.
+In Beijing I usually ate dinner at a hotel near my apartment.  The staff got
+to know me, and would always address me as "teacher." This token of respect 
+deeply touched me. 
+In China (or in Europe), I have never heard the sentence 
+"Those who do, do, and those who can't, teach."
 
-| vspace 100
+About those things I had little time for before I retired, two stand out:
+writing code (the Scripta.io project) and musical composition.
+I had messed around with occasional small coding projects ever since 
+the summer of my first year at the university of Idaho.   Around
+2013, I discovered something new (for me): the world of typed functional programming.
+There I found community, both socially and intellectually, and a new circle of
+friends.  I have worked with that language genre ever since, 
+mostly with [link Elm https:elm-lang.org] and to some extent with Haskell. 
+
+About music, I've dabbled in it for years, despite having had no musical education
+as a child and a poor one as a high school student.  Around 2008 I started taking c
+composition lessons with [link George Oakley https://georgeoakleycomposition.com/],
+a New York City composer from Tblisi, Georgia.  What I loved about those
+lessons is that from the very first George had me write music.  It was
+a good idea.  I don't think I could have survived even a year of counterpoint
+and harmony exercises without getting into the "real stuff."  It was very,
+very, slow going at first, indeed for a long time. But it was rewarding,
+and looking back, I realize that I did make progress.  On December 6,
+I organized a [link small concert at Klavierhaus https://jxxcarlson.org/music/] in New York City 
+featuring work of Alkan, Fujikura, Hailstork, Poulenc, Rebikov, Villa-Lobos, as well as work
+by George, composer Lora Al-Ahmad, and myself.  It was a small space, but we filled it.
+I am now working on a piano trio (piano, cello, and flute), my first attempt at three-part writing.
+
+
+
+
+
+
 
 ###  Mathematics, selecta
 

@@ -395,6 +395,28 @@ p.par {
     color: #333;
 }
 
+/* Top page navigation (next to title) */
+.page-nav-top {
+    float: right;
+    margin-top: -2.5rem;
+    display: flex;
+    gap: 0.5rem;
+}
+
+.page-nav-top a {
+    padding: 0.2rem 0.5rem;
+    border-radius: 3px;
+    text-decoration: none;
+    font-size: 0.85rem;
+    background: #e8e8e8;
+    color: #555;
+}
+
+.page-nav-top a:hover {
+    background: #ddd;
+    color: #333;
+}
+
 /* Two-column layout for Notes and Blog pages */
 @media (min-width: 800px) {
     body.two-column-page {

@@ -2,6 +2,10 @@
 title: Ether
 ---
 
+<div class="page-nav-top">
+<a href="/music/waltz.html">← Prev</a>
+<a href="/music/solea.html">Next →</a>
+</div>
 
 This piece is dedicated to my dear friend and long-time mathematical collaborator, Domingo Toledo.  He passed away in 2025.
 

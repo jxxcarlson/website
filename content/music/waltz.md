@@ -2,6 +2,10 @@
 title: Waltz
 ---
 
+<div class="page-nav-top">
+<a href="/music/solea.html">← Prev</a>
+<a href="/music/ether.html">Next →</a>
+</div>
 
 The pianist is
 [Inga Kashakashvili](https://www.ingakashakashvili.com/).

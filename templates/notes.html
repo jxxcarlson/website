@@ -173,6 +173,7 @@ function storeFilteredNavigation() {
 
 // Store original creation order (items are already sorted by creation date server-side)
 // Also extract sequence property from content if present
+let hasAnySequence = false;
 document.querySelectorAll('#notes-list li').forEach((li, index) => {
     li.dataset.createdIndex = index;
     // Extract sequence:N from content
@@ -180,8 +181,16 @@ document.querySelectorAll('#notes-list li').forEach((li, index) => {
     const seqMatch = content.match(/sequence:(\d+)/);
     if (seqMatch) {
         li.dataset.seq = seqMatch[1];
+        hasAnySequence = true;
     }
 });
+
+// Hide seq buttons if no items have sequence property
+if (!hasAnySequence) {
+    document.querySelectorAll('.sort-btn[data-sort^="seq-"]').forEach(btn => {
+        btn.style.display = 'none';
+    });
+}
 
 // Current sort state
 let currentSort = 'created';
