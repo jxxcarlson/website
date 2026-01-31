@@ -29,10 +29,10 @@ window.galleryPrev = function(btn) { window.galleryNav(btn, -1); };
 // Initialize galleries in a container
 window.initializeGalleries = function(container) {
     var galleries = container.querySelectorAll('.gallery');
-    if (galleries.length === 1) {
+    if (galleries.length >= 1) {
         window.activeGallery = galleries[0];
-    } else if (galleries.length > 0) {
-        window.activeGallery = galleries[0];
+    } else {
+        window.activeGallery = null;
     }
 };
 
