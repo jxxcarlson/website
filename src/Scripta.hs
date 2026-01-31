@@ -129,6 +129,9 @@ parseInlineElement linkMap s = do
                 in Just ("<a href=\"" ++ url ++ "\" target=\"_blank\" rel=\"noopener noreferrer\">" ++ label ++ "</a>", rest)
             _ -> Nothing
         "par" -> Just ("<p class=\"par\"></p>", rest)
+        "vspace" -> case parts of
+            ["vspace", pixels] -> Just ("<div style=\"height: " ++ pixels ++ "px;\"></div>", rest)
+            _ -> Nothing
         "box" -> Just ("<span class=\"checkbox\">☐</span>", rest)
         "cbox" -> Just ("<span class=\"checkbox checked\">☑</span>", rest)
         "cite" -> case parts of
@@ -773,21 +776,14 @@ renderGallery block =
           , "</div>"
           , "</div>"
           , "<script>"
-          , "function galleryNav(btn, delta) {"
-          , "  var g = btn.closest('.gallery');"
-          , "  var items = g.querySelectorAll('.gallery-item');"
-          , "  var total = items.length;"
-          , "  var current = parseInt(g.dataset.current || '0');"
-          , "  items[current].classList.remove('active');"
-          , "  current = (current + delta + total) % total;"  -- Circular navigation
-          , "  items[current].classList.add('active');"
-          , "  g.dataset.current = current;"
-          , "  var captions = JSON.parse(g.dataset.captions);"
-          , "  g.querySelector('.gallery-caption').textContent = captions[current];"
-          , "  g.querySelector('.gallery-counter').textContent = '(' + (current + 1) + '/' + total + ')';"
+          , "// Initialize gallery for direct page visits (dynamic loader handles dynamic loads)"
+          , "if (typeof initializeGalleries === 'function') {"
+          , "  initializeGalleries(document);"
+          , "} else {"
+          , "  // Fallback: set activeGallery if only one gallery on page"
+          , "  var galleries = document.querySelectorAll('.gallery');"
+          , "  if (galleries.length >= 1) { window.activeGallery = galleries[0]; }"
           , "}"
-          , "function galleryNext(btn) { galleryNav(btn, 1); }"
-          , "function galleryPrev(btn) { galleryNav(btn, -1); }"
           , "</script>"
           ]
 

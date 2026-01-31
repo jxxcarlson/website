@@ -1,6 +1,69 @@
 // Dynamic content loader for two-column layout
 // Only active on desktop (>= 800px)
 
+// Gallery navigation functions (global for both static and dynamic content)
+window.activeGallery = null;
+
+window.galleryNavG = function(g, delta) {
+    var items = g.querySelectorAll('.gallery-item');
+    var total = items.length;
+    var current = parseInt(g.dataset.current || '0');
+    items[current].classList.remove('active');
+    current = (current + delta + total) % total;
+    items[current].classList.add('active');
+    g.dataset.current = current;
+    var captions = JSON.parse(g.dataset.captions);
+    g.querySelector('.gallery-caption').textContent = captions[current];
+    g.querySelector('.gallery-counter').textContent = '(' + (current + 1) + '/' + total + ')';
+};
+
+window.galleryNav = function(btn, delta) {
+    var g = btn.closest('.gallery');
+    window.activeGallery = g;
+    window.galleryNavG(g, delta);
+};
+
+window.galleryNext = function(btn) { window.galleryNav(btn, 1); };
+window.galleryPrev = function(btn) { window.galleryNav(btn, -1); };
+
+// Initialize galleries in a container
+window.initializeGalleries = function(container) {
+    var galleries = container.querySelectorAll('.gallery');
+    if (galleries.length === 1) {
+        window.activeGallery = galleries[0];
+    } else if (galleries.length > 0) {
+        window.activeGallery = galleries[0];
+    }
+};
+
+// Global keyboard handler for galleries
+document.addEventListener('keydown', function(e) {
+    if (!window.activeGallery) return;
+    var lightbox = document.getElementById('lightbox');
+    var isExpanded = lightbox && lightbox.classList.contains('active');
+    if (e.key === 'ArrowLeft') {
+        window.galleryNavG(window.activeGallery, -1);
+        if (isExpanded) {
+            var img = window.activeGallery.querySelector('.gallery-item.active img');
+            if (img) document.getElementById('lightbox-img').src = img.src;
+        }
+    }
+    else if (e.key === 'ArrowRight') {
+        window.galleryNavG(window.activeGallery, 1);
+        if (isExpanded) {
+            var img = window.activeGallery.querySelector('.gallery-item.active img');
+            if (img) document.getElementById('lightbox-img').src = img.src;
+        }
+    }
+    else if (e.key === 'ArrowUp') {
+        var activeItem = window.activeGallery.querySelector('.gallery-item.active img');
+        if (activeItem && typeof openLightbox === 'function') { openLightbox(activeItem.src); }
+    }
+    else if (e.key === 'ArrowDown' || e.key === 'Escape') {
+        if (typeof closeLightbox === 'function') { closeLightbox(); }
+    }
+});
+
 (function() {
     const isDesktop = window.matchMedia('(min-width: 800px)').matches;
     if (!isDesktop) return;
@@ -87,6 +150,9 @@
 
             // Scroll content column to top
             dynamicContent.scrollTop = 0;
+
+            // Initialize galleries in dynamically loaded content
+            initializeGalleries(dynamicContent);
 
         } catch (error) {
             console.error('Error loading content:', error);

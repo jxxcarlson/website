@@ -46,3 +46,6 @@ Features:
 - 1-indexed counter display                                                                                                                                                                               
 - Images from /media/images/ path                                                                                                                                                                         
 - Comma-separated format: path, caption  
+
+After clicking a gallery's prev/next button, the left and right arrow keys will navigate 
+that gallery. The keyboard controls the most recently interacted gallery.
