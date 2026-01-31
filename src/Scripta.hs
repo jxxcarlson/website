@@ -745,17 +745,19 @@ renderSlide width height expandable (idx, (path, caption)) =
 -- Syntax: | gallery height:300 title:The Earth
 --         earth/image1.webp, Caption One
 --         earth/image2.webp, Caption Two
+-- Args: expandable (click opens image in lightbox)
 -- Props: height (default 300), title (optional)
 renderGallery :: Block -> [String]
 renderGallery block =
     let items = parseGalleryItems (blockContent block)
         height = fromMaybe "300" (getProp "height" block)
         title = getProp "title" block
+        isExpandable = hasArg "expandable" block
         total = length items
         titleHtml = case title of
             Just t  -> ["<div class=\"gallery-title\">" ++ t ++ "</div>"]
             Nothing -> []
-        itemsHtml = concatMap (renderGalleryItem height) (zip [0..] items)
+        itemsHtml = concatMap (renderGalleryItem height isExpandable) (zip [0..] items)
         -- Store captions as JSON for JavaScript
         captions = "[" ++ intercalate "," (map (\(_,c) -> "\"" ++ escapeJs c ++ "\"") items) ++ "]"
     in [ "<div class=\"gallery\" data-total=\"" ++ show total ++ "\" data-captions='" ++ captions ++ "'>" ]
@@ -799,13 +801,15 @@ parseGalleryItems = map parseGalleryLine . filter (not . all isSpace)
             (path, _) -> (trim path, "")
 
 -- | Render a single gallery item
-renderGalleryItem :: String -> (Int, (String, String)) -> [String]
-renderGalleryItem height (idx, (path, _)) =
+renderGalleryItem :: String -> Bool -> (Int, (String, String)) -> [String]
+renderGalleryItem height expandable (idx, (path, _)) =
     let imgPath = toImagePath path
         activeClass = if idx == 0 then " active" else ""
         styleAttr = " style=\"height: " ++ height ++ "px;\""
+        imgTag = "<img src=\"" ++ imgPath ++ "\"" ++ styleAttr ++ ">"
+        linkedImg = if expandable then wrapExpandable imgPath imgTag else imgTag
     in [ "<div class=\"gallery-item" ++ activeClass ++ "\" data-index=\"" ++ show idx ++ "\">"
-       , "<img src=\"" ++ imgPath ++ "\"" ++ styleAttr ++ ">"
+       , linkedImg
        , "</div>"
        ]
 
