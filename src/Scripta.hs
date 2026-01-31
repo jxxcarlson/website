@@ -299,6 +299,7 @@ renderBlock linkMap block = case blockType block of
     "indent"    -> renderIndent linkMap block
     "bibitem"   -> renderBibitem linkMap block
     "numbered-sections" -> renderNumberedSections linkMap block
+    "gallery"   -> renderGallery block
     "hide"      -> []  -- Hidden content, renders nothing
     _ -> ["<!-- Unknown Scripta block: " ++ blockType block ++ " -->"]
 
@@ -739,6 +740,89 @@ renderSlide width height expandable (idx, (path, caption)) =
        , captionHtml
        , "</div>"
        ]
+
+-- | Render a gallery block
+-- Syntax: | gallery height:300 title:The Earth
+--         earth/image1.webp, Caption One
+--         earth/image2.webp, Caption Two
+-- Props: height (default 300), title (optional)
+renderGallery :: Block -> [String]
+renderGallery block =
+    let items = parseGalleryItems (blockContent block)
+        height = fromMaybe "300" (getProp "height" block)
+        title = getProp "title" block
+        total = length items
+        titleHtml = case title of
+            Just t  -> ["<div class=\"gallery-title\">" ++ t ++ "</div>"]
+            Nothing -> []
+        itemsHtml = concatMap (renderGalleryItem height) (zip [0..] items)
+        -- Store captions as JSON for JavaScript
+        captions = "[" ++ intercalate "," (map (\(_,c) -> "\"" ++ escapeJs c ++ "\"") items) ++ "]"
+    in [ "<div class=\"gallery\" data-total=\"" ++ show total ++ "\" data-captions='" ++ captions ++ "'>" ]
+       ++ titleHtml
+       ++ [ "<div class=\"gallery-image-container\">" ]
+       ++ itemsHtml
+       ++ [ "</div>"
+          , "<div class=\"gallery-controls\">"
+          , "<button class=\"gallery-btn gallery-prev\" onclick=\"galleryPrev(this)\">&#9664;</button>"
+          , "<span class=\"gallery-caption\">" ++ (if null items then "" else snd (head items)) ++ "</span>"
+          , "<span class=\"gallery-counter\">(1/" ++ show total ++ ")</span>"
+          , "<button class=\"gallery-btn gallery-next\" onclick=\"galleryNext(this)\">&#9654;</button>"
+          , "</div>"
+          , "</div>"
+          , "<script>"
+          , "function galleryNav(btn, delta) {"
+          , "  var g = btn.closest('.gallery');"
+          , "  var items = g.querySelectorAll('.gallery-item');"
+          , "  var total = items.length;"
+          , "  var current = parseInt(g.dataset.current || '0');"
+          , "  items[current].classList.remove('active');"
+          , "  current = (current + delta + total) % total;"  -- Circular navigation
+          , "  items[current].classList.add('active');"
+          , "  g.dataset.current = current;"
+          , "  var captions = JSON.parse(g.dataset.captions);"
+          , "  g.querySelector('.gallery-caption').textContent = captions[current];"
+          , "  g.querySelector('.gallery-counter').textContent = '(' + (current + 1) + '/' + total + ')';"
+          , "}"
+          , "function galleryNext(btn) { galleryNav(btn, 1); }"
+          , "function galleryPrev(btn) { galleryNav(btn, -1); }"
+          , "</script>"
+          ]
+
+-- | Parse gallery content lines: "path, caption"
+parseGalleryItems :: [String] -> [(String, String)]
+parseGalleryItems = map parseGalleryLine . filter (not . all isSpace)
+  where
+    parseGalleryLine line =
+        case break (== ',') line of
+            (path, ',':caption) -> (trim path, trim caption)
+            (path, _) -> (trim path, "")
+
+-- | Render a single gallery item
+renderGalleryItem :: String -> (Int, (String, String)) -> [String]
+renderGalleryItem height (idx, (path, _)) =
+    let imgPath = toImagePath path
+        activeClass = if idx == 0 then " active" else ""
+        styleAttr = " style=\"height: " ++ height ++ "px;\""
+    in [ "<div class=\"gallery-item" ++ activeClass ++ "\" data-index=\"" ++ show idx ++ "\">"
+       , "<img src=\"" ++ imgPath ++ "\"" ++ styleAttr ++ ">"
+       , "</div>"
+       ]
+
+-- | Escape string for JavaScript
+escapeJs :: String -> String
+escapeJs = concatMap escapeChar
+  where
+    escapeChar '"' = "\\\""
+    escapeChar '\\' = "\\\\"
+    escapeChar '\n' = "\\n"
+    escapeChar c = [c]
+
+-- | Intercalate (join with separator)
+intercalate :: String -> [String] -> String
+intercalate _ [] = []
+intercalate _ [x] = x
+intercalate sep (x:xs) = x ++ sep ++ intercalate sep xs
 
 -- | Extract filename from path
 takeFileName :: String -> String
