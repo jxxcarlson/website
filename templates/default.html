@@ -9,6 +9,12 @@
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
     <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"
         onload="renderMathInElement(document.body);"></script>
+    <style>
+    .protected-link { color: #999; }
+    .protected-link.authenticated { color: inherit; }
+    .protected-hidden { display: none; }
+    .protected-hidden.authenticated { display: inline; }
+    </style>
 </head>
 <body>
     <header>
@@ -21,28 +27,23 @@
             <a href="/art/">Art</a>
             <a href="/reading/">Reading</a>
             <a href="/projects.html">Code</a>
-            <a href="/diary/" class="protected-link" style="display:none;">Diary</a>
-            <a href="/memoirs/" class="protected-link" style="display:none;">Memoirs</a>
-            <a href="/drafts/" class="protected-link" style="display:none;">Drafts</a>
+            <a href="/diary/" class="protected-link protected-hidden">Diary</a>
+            <a href="/memoirs/" class="protected-link protected-hidden">Memoirs</a>
+            <a href="/drafts/" class="protected-link">Drafts</a>
             <a href="/about.html">About</a>
         </nav>
     </header>
     <script>
-    // Check Cloudflare Access authentication for protected links
-    fetch('/cdn-cgi/access/get-identity')
-        .then(response => {
-            if (response.ok) return response.json();
-            throw new Error('Not authenticated');
+    // Check authentication status for protected links
+    fetch('/memoirs/.auth-check', { method: 'HEAD', redirect: 'manual' })
+        .then(function(response) {
+            if (response.ok) {
+                document.querySelectorAll('.protected-link').forEach(function(el) {
+                    el.classList.add('authenticated');
+                });
+            }
         })
-        .then(identity => {
-            // Show protected navigation links
-            document.querySelectorAll('.protected-link').forEach(el => {
-                el.style.display = '';
-            });
-        })
-        .catch(() => {
-            // Not authenticated - links stay hidden
-        });
+        .catch(function() {});
     </script>
     <script>
     (function() {
