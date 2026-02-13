@@ -173,7 +173,9 @@ main = do
 
         -- Archive notes that are NOT posts, diary, memoirs, drafts, or reading
         match "archive/**.txt" $ do
-            route $ setExtension "html"
+            route $ customRoute $ \ident ->
+                let filename = takeBaseName (takeFileName (toFilePath ident))
+                in "archive" </> toSlug filename ++ ".html"
             compile $ txtCompiler linkMap
                 >>= loadAndApplyTemplate "templates/note.html" (noteCtxWithNav noteNavMap)
                 >>= loadAndApplyTemplate "templates/default.html" (noteCtxWithNav noteNavMap)
@@ -238,6 +240,11 @@ main = do
                     >>= loadAndApplyTemplate "templates/blog.html" memoirsIndexCtx
                     >>= loadAndApplyTemplate "templates/default.html" memoirsIndexCtx
                     >>= relativizeUrls
+
+        -- Auth check file for protected sections (used by JS to detect authentication)
+        create ["memoirs/.auth-check"] $ do
+            route idRoute
+            compile $ makeItem ("ok" :: String)
 
         -- Drafts index page
         create ["drafts/index.html"] $ do
@@ -675,7 +682,7 @@ buildLinkMap dir postMap diaryMap memoirsMap draftsMap readingMap = do
                             then "/" ++ archiveToDraftsRoute draftsMap ident
                        else if ident `M.member` readingMap
                             then "/" ++ archiveToReadingRoute readingMap ident
-                            else "/archive/" ++ filename ++ ".html"
+                            else "/archive/" ++ toSlug filename ++ ".html"
 
         -- Only include files with valid Zettelkasten IDs (12 digits)
         return $ if length filename >= 12 && all (`elem` ['0'..'9']) (take 12 filename)
@@ -769,7 +776,7 @@ buildNoteNavMap noteIdents = do
             let path = toFilePath ident
                 filename = takeFileName path
                 dateKey = take 12 filename  -- Zettelkasten ID for sorting
-                route = "/" ++ replaceExtension path "html"
+                route = "/archive/" ++ toSlug (takeBaseName filename) ++ ".html"
             in (ident, dateKey, route)) noteIdents
         -- Sort by date (newest first)
         sorted = sortBy (\(_,d1,_) (_,d2,_) -> compare d2 d1) notesWithInfo
