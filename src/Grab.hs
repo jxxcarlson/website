@@ -395,9 +395,9 @@ fixupMarkdownLinks [] = []
 fixupMarkdownLinks ('[':'{':'L':'I':'N':'K':'_':'U':'R':'L':':':rest) =
     let (url, afterUrl) = break (== '}') rest
         afterBrace = drop 1 afterUrl  -- skip '}'
-        (text, afterClose) = break (== ']') afterBrace
-        afterBracket = drop 1 afterClose  -- skip ']'
-    in "[" ++ trim text ++ "](" ++ url ++ ")" ++ fixupMarkdownLinks afterBracket
+        (text, afterClose) = breakMatchingBracket afterBrace
+        plainText = stripMarkdownFormatting text
+    in "[" ++ trim plainText ++ "](" ++ url ++ ")" ++ fixupMarkdownLinks afterClose
 fixupMarkdownLinks (c:cs) = c : fixupMarkdownLinks cs
 
 -- | Fix Scripta link markers: [link {LINK_URL:url}text] -> [link text url]
@@ -406,10 +406,40 @@ fixupScriptaLinks [] = []
 fixupScriptaLinks ('[':'l':'i':'n':'k':' ':'{':'L':'I':'N':'K':'_':'U':'R':'L':':':rest) =
     let (url, afterUrl) = break (== '}') rest
         afterBrace = drop 1 afterUrl  -- skip '}'
-        (text, afterClose) = break (== ']') afterBrace
-        afterBracket = drop 1 afterClose  -- skip ']'
-    in "[link " ++ trim text ++ " " ++ url ++ "]" ++ fixupScriptaLinks afterBracket
+        (text, afterClose) = breakMatchingBracket afterBrace
+        plainText = stripScriptaFormatting text
+    in "[link " ++ trim plainText ++ " " ++ url ++ "]" ++ fixupScriptaLinks afterClose
 fixupScriptaLinks (c:cs) = c : fixupScriptaLinks cs
+
+-- | Find the matching ']' for a link, accounting for nested brackets
+breakMatchingBracket :: String -> (String, String)
+breakMatchingBracket = go (0 :: Int) []
+  where
+    go _ acc [] = (reverse acc, [])
+    go 0 acc (']':rest) = (reverse acc, rest)
+    go n acc (']':rest) = go (n - 1) (']':acc) rest
+    go n acc ('[':rest) = go (n + 1) ('[':acc) rest
+    go n acc (c:rest)   = go n (c:acc) rest
+
+-- | Strip Scripta inline formatting from link text
+-- Removes [i ...], [b ...], [u ...] wrappers, keeping just the text
+stripScriptaFormatting :: String -> String
+stripScriptaFormatting [] = []
+stripScriptaFormatting ('[':'i':' ':rest) = stripScriptaFormatting rest
+stripScriptaFormatting ('[':'b':' ':rest) = stripScriptaFormatting rest
+stripScriptaFormatting ('[':'u':' ':rest) = stripScriptaFormatting rest
+stripScriptaFormatting (']':rest) = stripScriptaFormatting rest
+stripScriptaFormatting (c:rest) = c : stripScriptaFormatting rest
+
+-- | Strip Markdown inline formatting from link text
+-- Removes **, *, <u></u> wrappers, keeping just the text
+stripMarkdownFormatting :: String -> String
+stripMarkdownFormatting [] = []
+stripMarkdownFormatting ('*':'*':rest) = stripMarkdownFormatting rest
+stripMarkdownFormatting ('*':rest) = stripMarkdownFormatting rest
+stripMarkdownFormatting ('<':'u':'>':rest) = stripMarkdownFormatting rest
+stripMarkdownFormatting ('<':'/':'u':'>':rest) = stripMarkdownFormatting rest
+stripMarkdownFormatting (c:rest) = c : stripMarkdownFormatting rest
 
 -- | Collapse 3+ consecutive blank lines to 2
 collapseBlankLines :: String -> String
