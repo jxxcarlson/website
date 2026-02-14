@@ -6,11 +6,23 @@
             <label><input type="radio" name="grab-format" value="md" checked> Markdown</label>
             <label><input type="radio" name="grab-format" value="scripta"> Scripta</label>
         </div>
-        <button id="grab-btn" class="grab-button" onclick="doGrab()">Grab</button>
-        <button id="archive-btn" class="grab-button grab-archive-btn" onclick="doGrabToArchive()">Save to Archive</button>
+        <button id="grab-btn" class="grab-button grab-protected" disabled onclick="doGrab()">Grab</button>
+        <button id="archive-btn" class="grab-button grab-archive-btn grab-protected" disabled onclick="doGrabToArchive()">Save to Archive</button>
     </div>
     <div id="grab-status" class="grab-status"></div>
     <div id="grab-preview" class="grab-preview"></div>
 </div>
 
 <script src="/js/grab.js"></script>
+<script>
+// Enable grab buttons only when authenticated
+fetch('/memoirs/.auth-check', { method: 'HEAD', redirect: 'manual' })
+    .then(function(response) {
+        if (response.ok) {
+            document.querySelectorAll('.grab-protected').forEach(function(el) {
+                el.disabled = false;
+            });
+        }
+    })
+    .catch(function() {});
+</script>
