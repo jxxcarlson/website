@@ -16,7 +16,7 @@ import Network.HTTP.Simple
     )
 import qualified Data.ByteString.Char8 as BS
 import Data.Char (toLower, isAlphaNum, isSpace)
-import Data.List (isInfixOf)
+import Data.List (isInfixOf, isPrefixOf)
 import Data.Time.Clock (getCurrentTime)
 import Data.Time.Format (formatTime, defaultTimeLocale)
 import Control.Exception (try, SomeException)
@@ -41,12 +41,13 @@ grabURL url fmt = do
         Right (status, body)
             | status >= 400 -> return $ Left $ "HTTP " ++ show status ++ " error"
             | otherwise -> do
-                let tags = parseTags body
+                let baseUrl = extractBaseUrl url
+                    tags = parseTags body
                     title = extractTitle tags
                     cleaned = cleanTags tags
                     mainContent = extractMainContent cleaned
                     noFirstH1 = stripFirstH1 mainContent
-                    converted = convertTags fmt noFirstH1
+                    converted = convertTags fmt baseUrl noFirstH1
                     fixed = fixupLinks fmt converted
                     document = "# " ++ title ++ "\n\n" ++ collapseBlankLines fixed
                 filename <- generateFilename title fmt
@@ -109,6 +110,23 @@ takeWhileTags = go (0 :: Int)
     go n (t@(TagClose _) : rest) = t : go (n - 1) rest
     go n (t@(TagOpen _ _) : rest) = t : go (n + 1) rest
     go n (t : rest) = t : go n rest
+
+-- | Check if the next meaningful tag inside a link is an <img>
+-- (i.e., the link wraps an image — we should skip the link wrapper)
+linkWrapsImage :: [Tag String] -> Bool
+linkWrapsImage [] = False
+linkWrapsImage (TagText s : rest)
+    | all isSpace s = linkWrapsImage rest
+linkWrapsImage (TagOpen name _ : _)
+    | map toLower name == "img" = True
+linkWrapsImage _ = False
+
+-- | Remove the closing </a> tag from the tag list so it doesn't produce a stray "]"
+dropClosingA :: [Tag String] -> [Tag String]
+dropClosingA [] = []
+dropClosingA (TagClose name : rest)
+    | map toLower name == "a" = rest
+dropClosingA (t : rest) = t : dropClosingA rest
 
 -- | Extract plain text from a list of tags (concatenating TagText nodes)
 extractText :: [Tag String] -> String
@@ -203,6 +221,27 @@ takeUntilClose target = go (1 :: Int)
             if n <= 1 then rest else TagClose name : go (n - 1) rest
     go n (t : rest) = t : go n rest
 
+-- | Extract base URL (scheme + host) from a full URL
+-- e.g. "https://www.sciencedaily.com/releases/2025/foo" -> "https://www.sciencedaily.com"
+extractBaseUrl :: String -> String
+extractBaseUrl url =
+    case break (== '/') (drop (length scheme) url) of
+        (host, _) -> scheme ++ host
+  where
+    scheme
+        | "https://" `isPrefixOf` url = "https://"
+        | "http://"  `isPrefixOf` url = "http://"
+        | otherwise = ""
+
+-- | Resolve a potentially relative URL against a base URL
+resolveUrl :: String -> String -> String
+resolveUrl baseUrl src
+    | "http://"  `isPrefixOf` src = src
+    | "https://" `isPrefixOf` src = src
+    | "//"       `isPrefixOf` src = "https:" ++ src
+    | "/"        `isPrefixOf` src = baseUrl ++ src
+    | otherwise                   = baseUrl ++ "/" ++ src
+
 -- | Strip the first <h1> element from tags to avoid duplicate title
 stripFirstH1 :: [Tag String] -> [Tag String]
 stripFirstH1 [] = []
@@ -212,8 +251,8 @@ stripFirstH1 (t : rest) = t : stripFirstH1 rest
 
 -- | Convert a list of HTML tags to the target format.
 --   Tracks whether we are inside a <pre> block to pass content through verbatim.
-convertTags :: OutputFormat -> [Tag String] -> String
-convertTags fmt = go False
+convertTags :: OutputFormat -> String -> [Tag String] -> String
+convertTags fmt baseUrl = go False
   where
     go :: Bool -> [Tag String] -> String
     go _ [] = ""
@@ -236,18 +275,20 @@ convertTags fmt = go False
 
             -- Images
             "img" ->
-                let src = maybe "" id $ lookupCI "src" attrs
+                let src = resolveUrl baseUrl $ maybe "" id $ lookupCI "src" attrs
                     alt = maybe "" id $ lookupCI "alt" attrs
                 in case fmt of
-                    Markdown -> "![" ++ alt ++ "](" ++ src ++ ")" ++ go inPre rest
-                    Scripta  -> "\n| image\n" ++ src ++ "\n" ++ go inPre rest
+                    Markdown -> "\n![" ++ alt ++ "](" ++ src ++ ")\n" ++ go inPre rest
+                    Scripta  -> "\n| image expandable\n" ++ src ++ "\n" ++ go inPre rest
 
-            -- Links
-            "a" ->
-                let href = maybe "" id $ lookupCI "href" attrs
-                in case fmt of
-                    Markdown -> "[{LINK_URL:" ++ href ++ "}" ++ go inPre rest
-                    Scripta  -> "[link {LINK_URL:" ++ href ++ "}" ++ go inPre rest
+            -- Links: if wrapping an image, skip the link and just emit the image
+            "a"
+                | linkWrapsImage rest -> go inPre (dropClosingA rest)
+                | otherwise ->
+                    let href = resolveUrl baseUrl $ maybe "" id $ lookupCI "href" attrs
+                    in case fmt of
+                        Markdown -> "[{LINK_URL:" ++ href ++ "}" ++ go inPre rest
+                        Scripta  -> "[link {LINK_URL:" ++ href ++ "}" ++ go inPre rest
 
             -- Bold
             _ | lname `elem` ["strong", "b"] ->
