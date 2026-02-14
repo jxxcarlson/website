@@ -28,6 +28,7 @@ import Grab (grabURL, GrabResult(..), OutputFormat(..))
 data GrabRequest = GrabRequest
     { url    :: String
     , format :: String
+    , tags   :: Maybe String
     } deriving (Show, Generic)
 
 instance FromJSON GrabRequest
@@ -56,7 +57,7 @@ main = do
                     status status400
                     json $ object ["error" .= ("Invalid format. Use 'md' or 'scripta'." :: String)]
                 Just fmt -> do
-                    result <- liftIO $ grabURL (url req) fmt
+                    result <- liftIO $ grabURL (url req) fmt (tags req)
                     case result of
                         Left err -> do
                             status status400
@@ -70,7 +71,7 @@ main = do
         post "/api/grab-to-archive" $ do
             req <- jsonData :: ActionM GrabRequest
             let fmt = Scripta  -- Archive notes use Scripta format
-            result <- liftIO $ grabURL (url req) fmt
+            result <- liftIO $ grabURL (url req) fmt (tags req)
             case result of
                 Left err -> do
                     status status400

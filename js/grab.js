@@ -17,6 +17,7 @@ function doGrab() {
     }
 
     var format = document.querySelector('input[name="grab-format"]:checked').value;
+    var tags = document.getElementById('grab-tags').value.trim();
 
     btn.disabled = true;
     btn.textContent = 'Grabbing...';
@@ -27,7 +28,7 @@ function doGrab() {
     fetch('http://localhost:8080/api/grab', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url, format: format })
+        body: JSON.stringify({ url: url, format: format, tags: tags || null })
     })
     .then(function(response) {
         if (!response.ok) {
@@ -85,6 +86,8 @@ function doGrabToArchive() {
         url = 'https://' + url;
     }
 
+    var tags = document.getElementById('grab-tags').value.trim();
+
     btn.disabled = true;
     btn.textContent = 'Saving...';
     statusDiv.textContent = 'Fetching and saving to Archive...';
@@ -94,7 +97,7 @@ function doGrabToArchive() {
     fetch('http://localhost:8080/api/grab-to-archive', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url, format: 'scripta' })
+        body: JSON.stringify({ url: url, format: 'scripta', tags: tags || null })
     })
     .then(function(response) {
         if (!response.ok) {

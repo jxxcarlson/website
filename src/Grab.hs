@@ -33,8 +33,8 @@ data GrabResult = GrabResult
     } deriving (Show)
 
 -- | Main entry point: fetch a URL and convert its content
-grabURL :: String -> OutputFormat -> IO (Either String GrabResult)
-grabURL url fmt = do
+grabURL :: String -> OutputFormat -> Maybe String -> IO (Either String GrabResult)
+grabURL url fmt maybeTags = do
     result <- try (fetchURL url) :: IO (Either SomeException (Int, String))
     case result of
         Left err -> return $ Left $ "HTTP error: " ++ show err
@@ -49,7 +49,13 @@ grabURL url fmt = do
                     noFirstH1 = stripFirstH1 mainContent
                     converted = convertTags fmt baseUrl noFirstH1
                     fixed = fixupLinks fmt converted
-                    document = "# " ++ title ++ "\n\n" ++ collapseBlankLines fixed
+                    tagsLine = case maybeTags of
+                        Just t | not (null (trim t)) -> trim t ++ "\n\n"
+                        _ -> ""
+                    sourceLink = case fmt of
+                        Scripta  -> "[link Source " ++ url ++ "]\n\n"
+                        Markdown -> "[Source](" ++ url ++ ")\n\n"
+                    document = "# " ++ title ++ "\n\n" ++ tagsLine ++ sourceLink ++ collapseBlankLines fixed
                 filename <- generateFilename title fmt
                 return $ Right $ GrabResult title document filename
 
