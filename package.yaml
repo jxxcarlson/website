@@ -40,5 +40,6 @@ executables:
       - wai
       - wai-cors
       - time
+      - process
     ghc-options:
       - -threaded

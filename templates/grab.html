@@ -26,7 +26,7 @@
     if (host === 'localhost' || host === '127.0.0.1') {
         enableGrab();
     } else {
-        fetch('/memoirs/.auth-check', { method: 'HEAD', redirect: 'manual' })
+        fetch('/drafts/.auth-check', { method: 'HEAD', redirect: 'manual' })
             .then(function(response) { if (response.ok) enableGrab(); })
             .catch(function() {});
     }

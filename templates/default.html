@@ -36,7 +36,7 @@
     </header>
     <script>
     // Check authentication status for protected links
-    fetch('/memoirs/.auth-check', { method: 'HEAD', redirect: 'manual' })
+    fetch('/drafts/.auth-check', { method: 'HEAD', redirect: 'manual' })
         .then(function(response) {
             if (response.ok) {
                 document.querySelectorAll('.protected-link').forEach(function(el) {

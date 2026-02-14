@@ -252,7 +252,7 @@ main = do
                     >>= relativizeUrls
 
         -- Auth check file for protected sections (used by JS to detect authentication)
-        create ["memoirs/.auth-check"] $ do
+        create ["drafts/.auth-check"] $ do
             route idRoute
             compile $ makeItem ("ok" :: String)
 
