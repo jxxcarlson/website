@@ -17,6 +17,10 @@ import Data.Aeson (FromJSON, object, (.=))
 import GHC.Generics (Generic)
 import qualified Data.Text.Lazy as TL
 import Control.Monad.IO.Class (liftIO)
+import System.Directory (getHomeDirectory)
+import System.FilePath ((</>))
+import Data.Time.Clock (getCurrentTime)
+import Data.Time.Format (formatTime, defaultTimeLocale)
 
 import Grab (grabURL, GrabResult(..), OutputFormat(..))
 
@@ -61,6 +65,44 @@ main = do
                             setHeader "Content-Type" "text/plain; charset=utf-8"
                             setHeader "X-Filename" (TL.pack $ grabFilename grabResult)
                             text (TL.pack $ grabContent grabResult)
+
+        -- Grab and save directly to The Archive
+        post "/api/grab-to-archive" $ do
+            req <- jsonData :: ActionM GrabRequest
+            let fmt = Scripta  -- Archive notes use Scripta format
+            result <- liftIO $ grabURL (url req) fmt
+            case result of
+                Left err -> do
+                    status status400
+                    json $ object ["error" .= err]
+                Right grabResult -> do
+                    saveResult <- liftIO $ saveToArchive (grabTitle grabResult) (grabContent grabResult)
+                    case saveResult of
+                        Left err -> do
+                            status status400
+                            json $ object ["error" .= err]
+                        Right filename -> do
+                            json $ object ["filename" .= filename, "title" .= grabTitle grabResult]
+
+-- | Save content to ~/Dropbox/theARCHIVE with a Zettelkasten ID filename
+saveToArchive :: String -> String -> IO (Either String String)
+saveToArchive title content = do
+    home <- getHomeDirectory
+    let archiveDir = home </> "Dropbox" </> "theARCHIVE"
+    now <- getCurrentTime
+    let zettelId = formatTime defaultTimeLocale "%Y%m%d%H%M%S" now
+        filename = zettelId ++ "-" ++ sanitizeTitle title ++ ".txt"
+        filepath = archiveDir </> filename
+    writeFile filepath (title ++ "\n\n" ++ content)
+    return $ Right filename
+
+-- | Sanitize title for use in filename
+sanitizeTitle :: String -> String
+sanitizeTitle = take 40 . map dashify . filter isValid
+  where
+    isValid c = c `elem` (['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ " -")
+    dashify ' ' = '-'
+    dashify c   = c
 
 -- | CORS middleware allowing all origins
 corsMiddleware :: Middleware

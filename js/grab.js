@@ -68,6 +68,56 @@ function doGrab() {
     });
 }
 
+function doGrabToArchive() {
+    var urlInput = document.getElementById('grab-url');
+    var statusDiv = document.getElementById('grab-status');
+    var previewDiv = document.getElementById('grab-preview');
+    var btn = document.getElementById('archive-btn');
+    var url = urlInput.value.trim();
+
+    if (!url) {
+        statusDiv.textContent = 'Please enter a URL.';
+        statusDiv.className = 'grab-status grab-error';
+        return;
+    }
+
+    if (!url.startsWith('http://') && !url.startsWith('https://')) {
+        url = 'https://' + url;
+    }
+
+    btn.disabled = true;
+    btn.textContent = 'Saving...';
+    statusDiv.textContent = 'Fetching and saving to Archive...';
+    statusDiv.className = 'grab-status';
+    previewDiv.textContent = '';
+
+    fetch('http://localhost:8080/api/grab-to-archive', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: url, format: 'scripta' })
+    })
+    .then(function(response) {
+        if (!response.ok) {
+            return response.json().then(function(data) {
+                throw new Error(data.error || 'Server error');
+            });
+        }
+        return response.json();
+    })
+    .then(function(result) {
+        statusDiv.textContent = 'Saved to Archive: ' + result.filename;
+        statusDiv.className = 'grab-status grab-success';
+    })
+    .catch(function(err) {
+        statusDiv.textContent = 'Error: ' + err.message;
+        statusDiv.className = 'grab-status grab-error';
+    })
+    .finally(function() {
+        btn.disabled = false;
+        btn.textContent = 'Save to Archive';
+    });
+}
+
 // Allow pressing Enter in the URL field
 document.addEventListener('DOMContentLoaded', function() {
     var input = document.getElementById('grab-url');
