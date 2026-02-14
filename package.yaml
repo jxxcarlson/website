@@ -33,6 +33,7 @@ executables:
     dependencies:
       - scotty
       - http-conduit
+      - http-types
       - tagsoup
       - aeson
       - bytestring
