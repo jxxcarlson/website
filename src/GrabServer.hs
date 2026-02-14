@@ -1,4 +1,5 @@
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE DeriveGeneric #-}
 
 module Main where
@@ -78,7 +79,7 @@ getLastDeploy = do
 startDevServer :: IORef ServerState -> IO (Either String String)
 startDevServer ref = do
     st <- readIORef ref
-    running <- isRunning (devServerProc st)
+    running <- isRunning st.devServerProc
     if running
         then return (Left "Dev server is already running")
         else do
@@ -101,7 +102,7 @@ startDevServer ref = do
 stopDevServer :: IORef ServerState -> IO (Either String String)
 stopDevServer ref = do
     st <- readIORef ref
-    case devServerProc st of
+    case st.devServerProc of
         Nothing -> return (Left "Dev server is not running")
         Just ph -> do
             interruptProcessGroupOf ph
@@ -113,7 +114,7 @@ stopDevServer ref = do
 startWatch :: IORef ServerState -> IO (Either String String)
 startWatch ref = do
     st <- readIORef ref
-    running <- isRunning (watchProc st)
+    running <- isRunning st.watchProc
     if running
         then return (Left "Watch process is already running")
         else do
@@ -130,7 +131,7 @@ startWatch ref = do
 stopWatch :: IORef ServerState -> IO (Either String String)
 stopWatch ref = do
     st <- readIORef ref
-    case watchProc st of
+    case st.watchProc of
         Nothing -> return (Left "Watch process is not running")
         Just ph -> do
             interruptProcessGroupOf ph
@@ -161,44 +162,44 @@ main = do
         -- Grab endpoint
         post "/api/grab" $ do
             req <- jsonData :: ActionM GrabRequest
-            case parseFormat (format req) of
+            case parseFormat req.format of
                 Nothing -> do
                     status status400
                     json $ object ["error" .= ("Invalid format. Use 'md' or 'scripta'." :: String)]
                 Just fmt -> do
-                    result <- liftIO $ grabURL (url req) fmt (tags req)
+                    result <- liftIO $ grabURL req.url fmt req.tags
                     case result of
                         Left err -> do
                             status status400
                             json $ object ["error" .= err]
                         Right grabResult -> do
                             setHeader "Content-Type" "text/plain; charset=utf-8"
-                            setHeader "X-Filename" (TL.pack $ grabFilename grabResult)
-                            text (TL.pack $ grabContent grabResult)
+                            setHeader "X-Filename" (TL.pack grabResult.grabFilename)
+                            text (TL.pack grabResult.grabContent)
 
         -- Grab and save directly to The Archive
         post "/api/grab-to-archive" $ do
             req <- jsonData :: ActionM GrabRequest
             let fmt = Scripta  -- Archive notes use Scripta format
-            result <- liftIO $ grabURL (url req) fmt (tags req)
+            result <- liftIO $ grabURL req.url fmt req.tags
             case result of
                 Left err -> do
                     status status400
                     json $ object ["error" .= err]
                 Right grabResult -> do
-                    saveResult <- liftIO $ saveToArchive (grabTitle grabResult) (grabContent grabResult)
+                    saveResult <- liftIO $ saveToArchive grabResult.grabTitle grabResult.grabContent
                     case saveResult of
                         Left err -> do
                             status status400
                             json $ object ["error" .= err]
                         Right filename -> do
-                            json $ object ["filename" .= filename, "title" .= grabTitle grabResult]
+                            json $ object ["filename" .= filename, "title" .= grabResult.grabTitle]
 
         -- Dashboard: process status
         get "/api/status" $ do
             st <- liftIO $ readIORef stateRef
-            devRunning <- liftIO $ isRunning (devServerProc st)
-            wRunning <- liftIO $ isRunning (watchProc st)
+            devRunning <- liftIO $ isRunning st.devServerProc
+            wRunning <- liftIO $ isRunning st.watchProc
             deploy <- liftIO getLastDeploy
             json $ ProcessInfo devRunning wRunning deploy
 
@@ -254,27 +255,30 @@ dashboardHtml = TL.pack $ unlines
     , "<style>"
     , "  * { margin: 0; padding: 0; box-sizing: border-box; }"
     , "  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;"
-    , "         background: #1a1a2e; color: #e0e0e0; padding: 2rem; }"
-    , "  h1 { text-align: center; margin-bottom: 2rem; color: #e94560; font-size: 1.5rem; }"
+    , "         background: #2b2b2b; color: #c8c8c8; padding: 2rem; }"
+    , "  h1 { text-align: center; margin-bottom: 2rem; color: #999; font-size: 1.4rem; font-weight: 500; }"
     , "  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));"
     , "          gap: 1.5rem; max-width: 900px; margin: 0 auto; }"
-    , "  .card { background: #16213e; border-radius: 12px; padding: 1.5rem;"
-    , "          border: 1px solid #0f3460; }"
-    , "  .card h2 { font-size: 1rem; margin-bottom: 1rem; color: #e94560; }"
+    , "  .card { background: #333; border-radius: 8px; padding: 1.5rem;"
+    , "          border: 1px solid #444; }"
+    , "  .card h2 { font-size: 0.95rem; margin-bottom: 1rem; color: #aaa; font-weight: 500; }"
     , "  .status-row { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; }"
-    , "  .dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }"
-    , "  .dot.on  { background: #4ecca3; box-shadow: 0 0 8px #4ecca3; }"
-    , "  .dot.off { background: #e94560; box-shadow: 0 0 8px #e94560; }"
-    , "  .status-label { font-size: 0.9rem; color: #a0a0b0; }"
-    , "  button { padding: 0.5rem 1.25rem; border: none; border-radius: 6px; cursor: pointer;"
-    , "           font-size: 0.85rem; font-weight: 600; transition: opacity 0.2s; }"
-    , "  button:hover { opacity: 0.85; }"
-    , "  button:disabled { opacity: 0.4; cursor: not-allowed; }"
-    , "  .btn-start { background: #4ecca3; color: #1a1a2e; }"
-    , "  .btn-stop  { background: #e94560; color: #fff; }"
-    , "  .btn-deploy { background: #0f3460; color: #e0e0e0; border: 1px solid #e94560; }"
-    , "  .deploy-info { font-size: 0.8rem; color: #a0a0b0; margin-top: 0.75rem; }"
-    , "  .msg { font-size: 0.8rem; color: #a0a0b0; margin-top: 0.5rem; min-height: 1.2em; }"
+    , "  .dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }"
+    , "  .dot.on  { background: #6a9; }"
+    , "  .dot.off { background: #666; }"
+    , "  .status-label { font-size: 0.85rem; color: #888; }"
+    , "  button { padding: 0.45rem 1.1rem; border: 1px solid #555; border-radius: 4px; cursor: pointer;"
+    , "           font-size: 0.8rem; font-weight: 500; transition: background 0.2s; background: #3a3a3a; color: #bbb; }"
+    , "  button:hover { background: #444; }"
+    , "  button:disabled { opacity: 0.35; cursor: not-allowed; }"
+    , "  .btn-start { border-color: #5a8a70; color: #7ab89a; }"
+    , "  .btn-start:hover { background: #3a4a40; }"
+    , "  .btn-stop  { border-color: #8a5a5a; color: #b87a7a; }"
+    , "  .btn-stop:hover { background: #4a3a3a; }"
+    , "  .btn-deploy { border-color: #5a6a8a; color: #8a9ab8; }"
+    , "  .btn-deploy:hover { background: #3a3a4a; }"
+    , "  .deploy-info { font-size: 0.8rem; color: #777; margin-top: 0.75rem; }"
+    , "  .msg { font-size: 0.8rem; color: #777; margin-top: 0.5rem; min-height: 1.2em; }"
     , "</style>"
     , "</head>"
     , "<body>"
