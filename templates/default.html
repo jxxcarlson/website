@@ -178,7 +178,16 @@
         <img id="lightbox-img" src="" alt="" onclick="closeLightbox()">
     </div>
     <script>
+    var lightboxImages = [];
+    var lightboxIndex = -1;
+
     function openLightbox(src) {
+        // Collect all expandable images on the page
+        lightboxImages = [];
+        document.querySelectorAll('a[onclick*="openLightbox"]').forEach(function(a) {
+            lightboxImages.push(a.href);
+        });
+        lightboxIndex = lightboxImages.indexOf(src);
         document.getElementById('lightbox-img').src = src;
         document.getElementById('lightbox').classList.add('active');
         document.body.style.overflow = 'hidden';
@@ -186,6 +195,12 @@
     function closeLightbox() {
         document.getElementById('lightbox').classList.remove('active');
         document.body.style.overflow = '';
+        lightboxIndex = -1;
+    }
+    function lightboxNav(delta) {
+        if (lightboxImages.length < 2 || lightboxIndex < 0) return;
+        lightboxIndex = (lightboxIndex + delta + lightboxImages.length) % lightboxImages.length;
+        document.getElementById('lightbox-img').src = lightboxImages[lightboxIndex];
     }
     document.getElementById('lightbox').addEventListener('click', function(e) {
         if (e.target === this) closeLightbox();
@@ -194,6 +209,10 @@
         if (e.key === 'Escape') {
             closeLightbox();
             returnFromCitation();
+        }
+        if (document.getElementById('lightbox').classList.contains('active')) {
+            if (e.key === 'ArrowRight') lightboxNav(1);
+            if (e.key === 'ArrowLeft') lightboxNav(-1);
         }
     });
     </script>
