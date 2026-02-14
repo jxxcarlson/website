@@ -103,6 +103,8 @@ parseInlineElement linkMap s = do
         -- Text-wrapping elements: recursively process content
         "i" | not (null argContent) ->
             Just ("<em>" ++ processInline linkMap argContent ++ "</em>", rest)
+        "italic" | not (null argContent) ->
+            Just ("<em>" ++ processInline linkMap argContent ++ "</em>", rest)
         "b" | not (null argContent) ->
             Just ("<strong>" ++ processInline linkMap argContent ++ "</strong>", rest)
         "u" | not (null argContent) ->
@@ -132,6 +134,8 @@ parseInlineElement linkMap s = do
         "vspace" -> case parts of
             ["vspace", pixels] -> Just ("<div style=\"height: " ++ pixels ++ "px;\"></div>", rest)
             _ -> Nothing
+        "item" | not (null argContent) ->
+            Just ("<li style=\"list-style-type: disc; margin-left: 1.5em;\">" ++ processInline linkMap argContent ++ "</li>", rest)
         "box" -> Just ("<span class=\"checkbox\">☐</span>", rest)
         "cbox" -> Just ("<span class=\"checkbox checked\">☑</span>", rest)
         "cite" -> case parts of
@@ -303,8 +307,27 @@ renderBlock linkMap block = case blockType block of
     "bibitem"   -> renderBibitem linkMap block
     "numbered-sections" -> renderNumberedSections linkMap block
     "gallery"   -> renderGallery block
-    "hide"      -> []  -- Hidden content, renders nothing
+    "subheading" -> renderSubheading linkMap block
+    "numbered"   -> renderNumbered linkMap block
+    "hide"       -> []  -- Hidden content, renders nothing
     _ -> ["<!-- Unknown Scripta block: " ++ blockType block ++ " -->"]
+
+-- | Render a subheading block
+-- Syntax: | subheading Some Title
+-- Renders as ### Some Title (h3)
+renderSubheading :: LinkMap -> Block -> [String]
+renderSubheading linkMap block =
+    let title = unwords (blockArgs block) ++ concatMap (\(k,v) -> " " ++ k ++ ":" ++ v) (blockProps block)
+        processed = processInline linkMap (trim title)
+    in ["### " ++ processed]
+
+-- | Render a numbered list item
+-- Syntax: | numbered
+--         Item content here
+renderNumbered :: LinkMap -> Block -> [String]
+renderNumbered linkMap block =
+    let content = trim $ processBlockContent linkMap block
+    in ["<li style=\"list-style-type: decimal; margin-left: 1.5em;\">" ++ content ++ "</li>"]
 
 -- | Render a center block
 renderCenter :: LinkMap -> Block -> [String]
