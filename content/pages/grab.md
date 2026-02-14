@@ -1,0 +1,18 @@
+---
+title: Grab
+---
+
+<div id="grab-app">
+    <div class="grab-form">
+        <input type="text" id="grab-url" placeholder="Enter URL to grab..." class="grab-input">
+        <div class="grab-options">
+            <label><input type="radio" name="grab-format" value="md" checked> Markdown</label>
+            <label><input type="radio" name="grab-format" value="scripta"> Scripta</label>
+        </div>
+        <button id="grab-btn" class="grab-button" onclick="doGrab()">Grab</button>
+    </div>
+    <div id="grab-status" class="grab-status"></div>
+    <div id="grab-preview" class="grab-preview"></div>
+</div>
+
+<script src="/js/grab.js"></script>
