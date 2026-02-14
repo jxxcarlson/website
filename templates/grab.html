@@ -15,14 +15,20 @@
 
 <script src="/js/grab.js"></script>
 <script>
-// Enable grab buttons only when authenticated
-fetch('/memoirs/.auth-check', { method: 'HEAD', redirect: 'manual' })
-    .then(function(response) {
-        if (response.ok) {
-            document.querySelectorAll('.grab-protected').forEach(function(el) {
-                el.disabled = false;
-            });
-        }
-    })
-    .catch(function() {});
+// Enable grab buttons: always on localhost, auth-check on deployed site
+(function() {
+    function enableGrab() {
+        document.querySelectorAll('.grab-protected').forEach(function(el) {
+            el.disabled = false;
+        });
+    }
+    var host = window.location.hostname;
+    if (host === 'localhost' || host === '127.0.0.1') {
+        enableGrab();
+    } else {
+        fetch('/memoirs/.auth-check', { method: 'HEAD', redirect: 'manual' })
+            .then(function(response) { if (response.ok) enableGrab(); })
+            .catch(function() {});
+    }
+})();
 </script>
