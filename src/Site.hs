@@ -98,6 +98,16 @@ main = do
             route   idRoute
             compile copyFileCompiler
 
+        -- Grab page (raw HTML, no Pandoc processing)
+        create ["grab.html"] $ do
+            route idRoute
+            compile $ do
+                let grabCtx = constField "title" "Grab" `mappend` defaultContext
+                makeItem ""
+                    >>= loadAndApplyTemplate "templates/grab.html" grabCtx
+                    >>= loadAndApplyTemplate "templates/default.html" grabCtx
+                    >>= relativizeUrls
+
         -- Pages
         match "content/pages/*" $ do
             route   $ gsubRoute "content/pages/" (const "") `composeRoutes` setExtension "html"
