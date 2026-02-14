@@ -45,7 +45,8 @@ grabURL url fmt = do
                     title = extractTitle tags
                     cleaned = cleanTags tags
                     mainContent = extractMainContent cleaned
-                    converted = convertTags fmt mainContent
+                    noFirstH1 = stripFirstH1 mainContent
+                    converted = convertTags fmt noFirstH1
                     fixed = fixupLinks fmt converted
                     document = "# " ++ title ++ "\n\n" ++ collapseBlankLines fixed
                 filename <- generateFilename title fmt
@@ -201,6 +202,13 @@ takeUntilClose target = go (1 :: Int)
         | map toLower name == map toLower target =
             if n <= 1 then rest else TagClose name : go (n - 1) rest
     go n (t : rest) = t : go n rest
+
+-- | Strip the first <h1> element from tags to avoid duplicate title
+stripFirstH1 :: [Tag String] -> [Tag String]
+stripFirstH1 [] = []
+stripFirstH1 (TagOpen name _ : rest)
+    | map toLower name == "h1" = dropUntilClose "h1" rest
+stripFirstH1 (t : rest) = t : stripFirstH1 rest
 
 -- | Convert a list of HTML tags to the target format.
 --   Tracks whether we are inside a <pre> block to pass content through verbatim.
