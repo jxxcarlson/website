@@ -162,13 +162,15 @@ adPatterns =
     , "related-posts", "recommended"
     ]
 
--- | Check if an element has ad-related classes or IDs
+-- | Check if an element has ad-related classes or IDs.
+--   Uses prefix matching on individual class/id tokens to avoid false
+--   positives (e.g. "sidebar" should match "sidebar-left" but not "-with-sidebars").
 isAdElement :: [Attribute String] -> Bool
 isAdElement attrs =
-    let classVal = map toLower $ maybe "" id $ lookupCI "class" attrs
-        idVal    = map toLower $ maybe "" id $ lookupCI "id" attrs
-    in any (`isInfixOf` classVal) adPatterns
-       || any (`isInfixOf` idVal) adPatterns
+    let classTokens = words $ map toLower $ maybe "" id $ lookupCI "class" attrs
+        idTokens    = words $ map toLower $ maybe "" id $ lookupCI "id" attrs
+        matchesAny tok = any (`isPrefixOf` tok) adPatterns
+    in any matchesAny classTokens || any matchesAny idTokens
 
 -- | Remove unwanted tags and their content from the tag list
 cleanTags :: [Tag String] -> [Tag String]
@@ -195,18 +197,60 @@ dropUntilClose target = go (1 :: Int)
             if n <= 1 then rest else go (n - 1) rest
     go n (_ : rest) = go n rest
 
--- | Extract main content area: <article>, <main>, or <body>
+-- | Class patterns ordered from most specific to least specific.
+--   We try each pattern across all tags before moving to the next,
+--   so a specific pattern always wins over a broad one.
+contentClassPriority :: [String]
+contentClassPriority =
+    [ "entry-content", "post-content", "post-body"
+    , "article-body", "article__body", "article__content"
+    , "story-body", "story-content"
+    , "content-body", "body-content"
+    , "wysiwyg-block", "wysiwyg"
+    ]
+
+-- | Check if an element has a specific CSS class token
+hasClassToken :: String -> [Attribute String] -> Bool
+hasClassToken pat attrs =
+    pat `elem` words (map toLower $ maybe "" id $ lookupCI "class" attrs)
+
+-- | Find ALL elements with a specific CSS class token and concatenate content.
+--   Many sites split articles across multiple sibling divs with the same class.
+findAllContentByPattern :: String -> [Tag String] -> [Tag String]
+findAllContentByPattern _ [] = []
+findAllContentByPattern pat (TagOpen name attrs : rest)
+    | hasClassToken pat attrs =
+        let content = takeUntilClose name rest
+            remaining = dropUntilClose name rest
+        in content ++ findAllContentByPattern pat remaining
+findAllContentByPattern pat (_ : rest) = findAllContentByPattern pat rest
+
+-- | Try each class pattern in priority order, collecting all matches
+findContentByClass :: [Tag String] -> Maybe [Tag String]
+findContentByClass tags = go contentClassPriority
+  where
+    go [] = Nothing
+    go (pat:pats) =
+        case findAllContentByPattern pat tags of
+            [] -> go pats
+            content -> Just content
+
+-- | Extract main content area.
+--   Priority: content-class div > article > main > body > all tags
 extractMainContent :: [Tag String] -> [Tag String]
 extractMainContent tags =
-    case findContentIn "article" tags of
+    case findContentByClass tags of
         Just content -> content
         Nothing ->
-            case findContentIn "main" tags of
+            case findContentIn "article" tags of
                 Just content -> content
                 Nothing ->
-                    case findContentIn "body" tags of
+                    case findContentIn "main" tags of
                         Just content -> content
-                        Nothing      -> tags  -- Fall back to all tags
+                        Nothing ->
+                            case findContentIn "body" tags of
+                                Just content -> content
+                                Nothing      -> tags  -- Fall back to all tags
 
 -- | Find the content between a given element's open and close tags
 findContentIn :: String -> [Tag String] -> Maybe [Tag String]

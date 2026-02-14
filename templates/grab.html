@@ -7,7 +7,9 @@
             <label><input type="radio" name="grab-format" value="scripta"> Scripta</label>
         </div>
         <button id="grab-btn" class="grab-button grab-protected" disabled onclick="doGrab()">Grab</button>
-        <button id="archive-btn" class="grab-button grab-archive-btn grab-protected" disabled onclick="doGrabToArchive()">Save to Archive</button>
+        <span style="display:inline-block;width:24px"></span>
+        <button id="archive-btn" class="grab-button grab-archive-btn" disabled onclick="doSaveToArchive()">Save to Archive</button>
+        <button id="disk-btn" class="grab-button grab-archive-btn" disabled onclick="doSaveToDisk()">Save to Disk</button>
     </div>
     <div id="grab-status" class="grab-status"></div>
     <div id="grab-preview" class="grab-preview"></div>

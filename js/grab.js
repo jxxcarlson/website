@@ -1,3 +1,14 @@
+// Holds the last grabbed result so Save buttons can use it
+var lastGrabResult = null;
+
+function updateSaveButtons() {
+    var hasResult = lastGrabResult !== null;
+    var archiveBtn = document.getElementById('archive-btn');
+    var diskBtn = document.getElementById('disk-btn');
+    if (archiveBtn) archiveBtn.disabled = !hasResult;
+    if (diskBtn) diskBtn.disabled = !hasResult;
+}
+
 function doGrab() {
     var urlInput = document.getElementById('grab-url');
     var statusDiv = document.getElementById('grab-status');
@@ -24,6 +35,8 @@ function doGrab() {
     statusDiv.textContent = 'Fetching and converting...';
     statusDiv.className = 'grab-status';
     previewDiv.textContent = '';
+    lastGrabResult = null;
+    updateSaveButtons();
 
     fetch('http://localhost:8080/api/grab', {
         method: 'POST',
@@ -38,25 +51,15 @@ function doGrab() {
         }
         var filename = response.headers.get('X-Filename') || 'grabbed-document.' + format;
         return response.text().then(function(text) {
-            return { text: text, filename: filename };
+            return { text: text, filename: filename, url: url, tags: tags || null };
         });
     })
     .then(function(result) {
-        statusDiv.textContent = 'Done! Downloading ' + result.filename;
+        lastGrabResult = result;
+        statusDiv.textContent = 'Grabbed: ' + result.filename;
         statusDiv.className = 'grab-status grab-success';
-
-        // Show preview (first 500 chars)
         previewDiv.textContent = result.text.substring(0, 500) + (result.text.length > 500 ? '\n...' : '');
-
-        // Trigger download
-        var blob = new Blob([result.text], { type: 'text/plain' });
-        var a = document.createElement('a');
-        a.href = URL.createObjectURL(blob);
-        a.download = result.filename;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(a.href);
+        updateSaveButtons();
     })
     .catch(function(err) {
         statusDiv.textContent = 'Error: ' + err.message;
@@ -69,35 +72,36 @@ function doGrab() {
     });
 }
 
-function doGrabToArchive() {
-    var urlInput = document.getElementById('grab-url');
+function doSaveToDisk() {
+    if (!lastGrabResult) return;
+    var blob = new Blob([lastGrabResult.text], { type: 'text/plain' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = lastGrabResult.filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(a.href);
+
     var statusDiv = document.getElementById('grab-status');
-    var previewDiv = document.getElementById('grab-preview');
+    statusDiv.textContent = 'Downloaded: ' + lastGrabResult.filename;
+    statusDiv.className = 'grab-status grab-success';
+}
+
+function doSaveToArchive() {
+    if (!lastGrabResult) return;
+    var statusDiv = document.getElementById('grab-status');
     var btn = document.getElementById('archive-btn');
-    var url = urlInput.value.trim();
-
-    if (!url) {
-        statusDiv.textContent = 'Please enter a URL.';
-        statusDiv.className = 'grab-status grab-error';
-        return;
-    }
-
-    if (!url.startsWith('http://') && !url.startsWith('https://')) {
-        url = 'https://' + url;
-    }
-
-    var tags = document.getElementById('grab-tags').value.trim();
 
     btn.disabled = true;
     btn.textContent = 'Saving...';
-    statusDiv.textContent = 'Fetching and saving to Archive...';
+    statusDiv.textContent = 'Saving to Archive...';
     statusDiv.className = 'grab-status';
-    previewDiv.textContent = '';
 
     fetch('http://localhost:8080/api/grab-to-archive', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ url: url, format: 'scripta', tags: tags || null })
+        body: JSON.stringify({ url: lastGrabResult.url, format: 'scripta', tags: lastGrabResult.tags })
     })
     .then(function(response) {
         if (!response.ok) {
