@@ -25,3 +25,19 @@ executables:
       - Archive
     ghc-options:
       - -threaded
+  grab-server:
+    main: GrabServer.hs
+    source-dirs: src
+    other-modules:
+      - Grab
+    dependencies:
+      - scotty
+      - http-conduit
+      - tagsoup
+      - aeson
+      - bytestring
+      - wai
+      - wai-cors
+      - time
+    ghc-options:
+      - -threaded
