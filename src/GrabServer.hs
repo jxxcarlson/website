@@ -485,7 +485,8 @@ previewListPage files = unlines
     , "  li { padding: 0.4rem 0; border-bottom: 1px solid #eee; }"
     , "  li a { color: #2266cc; text-decoration: none; }"
     , "  li a:hover { text-decoration: underline; }"
-    , "  .filename { color: #999; font-size: 0.8rem; margin-left: 0.5rem; }"
+    , "  .filename { color: #999; font-size: 0.8rem; margin-left: 0.5rem; text-decoration: none; }"
+    , "  .filename:hover { color: #666; text-decoration: underline; }"
     , "  .count { color: #999; font-size: 0.85rem; margin-bottom: 0.5rem; }"
     , "</style>"
     , "</head><body>"
@@ -514,9 +515,11 @@ previewListPage files = unlines
     ]
   where
     renderFileItem (filename, title) =
-        "<li><a href=\"/api/preview?file=" ++ filename ++ "\">"
-        ++ escapeHtml title ++ "</a>"
-        ++ "<span class=\"filename\">" ++ filename ++ "</span></li>\n"
+        let zettelId = takeWhile (\c -> c >= '0' && c <= '9') filename
+        in "<li><a href=\"/api/preview?file=" ++ filename ++ "\">"
+           ++ escapeHtml title ++ "</a>"
+           ++ "<a href=\"thearchive://match/" ++ zettelId ++ "\" class=\"filename\">"
+           ++ filename ++ "</a></li>\n"
     escapeHtml [] = []
     escapeHtml ('<':xs) = "&lt;" ++ escapeHtml xs
     escapeHtml ('>':xs) = "&gt;" ++ escapeHtml xs
