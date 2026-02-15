@@ -1,0 +1,87 @@
+ Inline                                                                                                                                                          
+                                                                                                                                                                  
+  - Math: $...$                                                                                                                                                   
+  - Italic: [i text], Bold: [b text], Underline: [u text], Strikethrough: [strike text]                                                                           
+  - Link: [link Label URL]
+  - Internal link: [ilink ZETTELID] or [ilink ZETTELID "custom text"]
+  - Wiki link: [[ZETTELID]] or [[ZETTELID custom text]]
+  - Program link: [prog Title file.html]
+  - Horizontal rule: [hrule] or [hrule 100] (width in px)
+  - Paragraph break: [par]
+  - Checkbox: [box] (☐), [cbox] (☑)
+  - Citation: [cite LABEL]
+  - List item: [item text]
+
+  Block (pipe syntax, content on following lines)
+
+  | equation
+  \Phi = \sigma T^4
+
+  | equation           (aligned: use & in the body)
+  a &= b + c \\
+  d &= e + f
+
+  | theorem (Name)
+  Statement of theorem.
+
+  | quotation title:Source
+  Quoted text here.
+
+  | image width:300 caption:My Photo
+  photo.webp
+
+  | image expandable display:row width:200
+  img1.webp, img2.webp, img3.webp
+
+  | image display:fullwidth caption:Title
+  wide.webp
+
+  | slideshow expandable width:600
+  img1.webp | Caption one
+  img2.webp | Caption two
+
+  | gallery height:300 title:Title
+  path/img1.webp, Caption One
+  path/img2.webp, Caption Two
+
+  | indent
+  Indented text (default 2em)
+
+  | indent 40
+  Indented 40px
+
+  | center
+  Centered text
+
+  | vspace 20
+
+  | audio title:My Song
+  song.m4a
+
+  | video width:640 height:360
+  https://vimeo.com/12345
+
+  | prog title:My App width:600 height:400
+  app.html
+
+  | pdf width:100% height:600px
+  document.pdf
+
+  | subheading Section Title
+
+  | numbered
+  List item content
+
+  | bibitem LABEL
+  Reference text...
+
+  | hide
+  Hidden content (not rendered)
+
+  Document header (Scripta import format)
+
+  | title
+  My Document Title
+
+  [tags post tag:physics]
+
