@@ -30,6 +30,8 @@ executables:
     source-dirs: src
     other-modules:
       - Grab
+      - Scripta
+      - Utils
     dependencies:
       - scotty
       - http-conduit
@@ -41,5 +43,6 @@ executables:
       - wai-cors
       - time
       - process
+      - pandoc
     ghc-options:
       - -threaded

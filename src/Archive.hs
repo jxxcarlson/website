@@ -23,7 +23,7 @@ import Data.List (isPrefixOf, isInfixOf, find)
 import Data.Char (isSpace)
 import Data.Maybe (catMaybes)
 
-import Utils (extractFirstLineTitle)
+import Utils (extractFirstLineTitle, preprocessScriptaImport)
 
 -- | Find all .txt files recursively in a directory
 findTxtFiles :: FilePath -> IO [FilePath]
@@ -143,63 +143,3 @@ buildTagIndex tagMap = M.foldrWithKey addTags M.empty tagMap
     addTags ident tags acc = foldr (addTag ident) acc tags
     addTag ident tag acc = M.insertWith (++) tag [ident] acc
 
--- | Preprocess Scripta-format documents
--- Handles: | title\n<TITLE> format, [tags ...] format, and [image ...] format
-preprocessScriptaImport :: String -> String
-preprocessScriptaImport content =
-    let -- First pass: handle [image ...] blocks (may span multiple lines)
-        afterImage = processImageBlocks content
-        -- Second pass: handle line-based transformations
-        ls = lines afterImage
-        processed = processLines ls
-    in unlines processed
-  where
-    -- Process [image ...] blocks, which may span multiple lines
-    processImageBlocks [] = []
-    processImageBlocks s
-        | "[image " `isPrefixOf` s =
-            let afterOpen = drop 7 s  -- drop "[image "
-                (inner, rest) = spanToClosingBracket afterOpen
-                -- Remove line breaks and normalize whitespace
-                normalized = unwords $ words inner
-            in "| image\n" ++ normalized ++ "\n" ++ processImageBlocks rest
-        | otherwise = head s : processImageBlocks (tail s)
-
-    -- Find content up to closing bracket, handling nested content
-    spanToClosingBracket :: String -> (String, String)
-    spanToClosingBracket s = go [] s
-      where
-        go acc [] = (reverse acc, [])
-        go acc (']':rest) = (reverse acc, rest)
-        go acc (c:rest) = go (c:acc) rest
-
-    processLines [] = []
-    processLines (l:rest)
-        -- Handle | title header
-        | "| title" == dropWhile isSpace l =
-            case rest of
-                (titleLine:remaining) -> titleLine : processLines remaining
-                [] -> []
-        -- Handle [tags ...] line
-        | "[tags " `isPrefixOf` dropWhile isSpace l =
-            convertTagsLine l : processLines rest
-        | otherwise = l : processLines rest
-
-    -- Convert [tags post tag:physics] to #post #tag:physics
-    convertTagsLine line =
-        let trimmed = dropWhile isSpace line
-            -- Extract content between [tags and ]
-            inner = drop 6 trimmed  -- drop "[tags "
-            content' = takeWhile (/= ']') inner
-            tags = words content'
-            -- Convert each tag: "post" -> "#post", "tag:physics" -> "#tag:physics"
-            convertedTags = map convertTag tags
-        in unwords convertedTags
-
-    convertTag tag =
-        let cleaned = filter isValidTagChar tag
-        in "#" ++ cleaned
-
-    -- Valid tag characters: letters, digits, colon
-    isValidTagChar c = c `elem` ['a'..'z'] || c `elem` ['A'..'Z']
-                    || c `elem` ['0'..'9'] || c == ':'

@@ -12,14 +12,18 @@ import Network.Wai.Middleware.Cors
     , simpleCorsResourcePolicy
     , simpleHeaders
     )
-import Network.HTTP.Types.Status (status400)
+import Network.HTTP.Types.Status (status400, status404)
 import Network.HTTP.Types.Method (methodGet, methodPost, methodOptions)
 import Data.Aeson (FromJSON, ToJSON, object, (.=))
 import GHC.Generics (Generic)
+import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
 import Control.Monad.IO.Class (liftIO)
-import System.Directory (getHomeDirectory, getCurrentDirectory)
+import System.Directory (getHomeDirectory, getCurrentDirectory, doesFileExist)
 import System.FilePath ((</>))
+import Text.Pandoc (runPure, readMarkdown, writeHtml5String, def)
+import Text.Pandoc.Options (ReaderOptions(..), WriterOptions(..), HTMLMathMethod(..), Extension(..), enableExtension)
+import qualified Data.Map as M
 import Data.Time.Clock (getCurrentTime)
 import Data.Time.Format (formatTime, defaultTimeLocale)
 import Data.IORef
@@ -27,6 +31,8 @@ import System.Process (createProcess, proc, terminateProcess, interruptProcessGr
 import Control.Exception (try, SomeException)
 
 import Grab (grabURL, GrabResult(..), OutputFormat(..))
+import Scripta (processScripta, LinkMap)
+import Utils (preprocessScriptaImport, stripFirstLine, stripFirstLineTags)
 
 -- | JSON request body for /api/grab
 data GrabRequest = GrabRequest
@@ -243,6 +249,29 @@ main = do
             setHeader "Content-Type" "text/html; charset=utf-8"
             html dashboardHtml
 
+        -- Preview endpoint: render archive file through Scripta→Pandoc pipeline
+        get "/api/preview" $ do
+            name <- queryParam "file" :: ActionM String
+            home <- liftIO getHomeDirectory
+            let archivePath = home </> "Dropbox" </> "theARCHIVE"
+                fullPath = archivePath </> name
+            exists <- liftIO $ doesFileExist fullPath
+            if not exists
+                then do
+                    status status404
+                    json (object ["error" .= ("File not found" :: String)])
+                else do
+                    content <- liftIO $ readFile fullPath
+                    -- Force evaluation to avoid lazy IO issues
+                    _ <- liftIO $ return $! length content
+                    case renderPreview content of
+                        Left err -> do
+                            status status400
+                            json (object ["error" .= err])
+                        Right renderedHtml -> do
+                            setHeader "Content-Type" "text/html; charset=utf-8"
+                            Web.Scotty.html (TL.pack $ previewPage name renderedHtml)
+
 -- | Dashboard HTML served inline
 dashboardHtml :: TL.Text
 dashboardHtml = TL.pack $ unlines
@@ -408,6 +437,104 @@ sanitizeTitle = take 40 . map dashify . filter isValid
     isValid c = c `elem` (['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ " -")
     dashify ' ' = '-'
     dashify c   = c
+
+-- | Render archive file content through Scripta→Pandoc pipeline
+renderPreview :: String -> Either String String
+renderPreview content =
+    let processed = processScripta M.empty
+                  $ stripFirstLineTags
+                  $ stripFirstLine
+                  $ preprocessScriptaImport content
+        readerOpts = def { readerExtensions = enableExtension Ext_raw_html
+                                            $ enableExtension Ext_markdown_in_html_blocks
+                                            $ enableExtension Ext_tex_math_dollars
+                                            $ enableExtension Ext_tex_math_double_backslash
+                                            $ readerExtensions (def :: ReaderOptions) }
+        writerOpts = def { writerHTMLMathMethod = MathJax ""
+                         , writerExtensions = enableExtension Ext_raw_html
+                                            $ writerExtensions (def :: WriterOptions) }
+        result = runPure $ do
+            doc <- readMarkdown readerOpts (T.pack processed)
+            writeHtml5String writerOpts doc
+    in case result of
+        Left err  -> Left (show err)
+        Right h -> Right (T.unpack h)
+
+-- | Wrap rendered HTML in a full preview page with KaTeX and auto-refresh
+previewPage :: String -> String -> String
+previewPage filename bodyHtml = unlines
+    [ "<!DOCTYPE html>"
+    , "<html lang=\"en\">"
+    , "<head>"
+    , "<meta charset=\"UTF-8\">"
+    , "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+    , "<title>Preview: " ++ filename ++ "</title>"
+    , "<link rel=\"stylesheet\" href=\"https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css\">"
+    , "<script defer src=\"https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js\"></script>"
+    , "<script defer src=\"https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js\""
+    , "  onload=\"renderMathInElement(document.body, {"
+    , "    delimiters: ["
+    , "      {left: '\\\\[', right: '\\\\]', display: true},"
+    , "      {left: '\\\\(', right: '\\\\)', display: false}"
+    , "    ]"
+    , "  });\"></script>"
+    , "<style>"
+    , "  body { font-family: Georgia, 'Times New Roman', serif; max-width: 700px;"
+    , "         margin: 0 auto; padding: 2rem; line-height: 1.6; color: #333; background: #fafafa; }"
+    , "  h1, h2, h3 { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; }"
+    , "  img { max-width: 100%; }"
+    , "  pre { background: #f0f0f0; padding: 1em; overflow-x: auto; border-radius: 4px; }"
+    , "  code { background: #f0f0f0; padding: 0.15em 0.3em; border-radius: 3px; font-size: 0.9em; }"
+    , "  pre code { background: none; padding: 0; }"
+    , "  blockquote { border-left: 3px solid #ccc; margin-left: 0; padding-left: 1em; color: #555; }"
+    , "  .equation { margin: 1.5em 0; text-align: center; }"
+    , "  .theorem { border-left: 3px solid #666; padding: 0.5em 1em; margin: 1em 0; background: #f5f5f0; }"
+    , "  .theorem-label { font-weight: bold; font-style: italic; }"
+    , "  .quotation { margin-left: 2em; font-style: italic; color: #555; }"
+    , "  .quotation-title { margin-left: 2em; margin-bottom: 0.25em; }"
+    , "  .bibitem { margin: 0.5em 0; padding-left: 3em; text-indent: -3em; }"
+    , "  .bibitem-label { font-weight: bold; }"
+    , "  a { color: #2266cc; }"
+    , "  .preview-bar { position: fixed; top: 0; left: 0; right: 0; background: #333; color: #aaa;"
+    , "                  padding: 4px 12px; font-size: 12px; font-family: monospace; z-index: 1000; }"
+    , "  .preview-bar .filename { color: #ddd; }"
+    , "</style>"
+    , "</head>"
+    , "<body>"
+    , "<div class=\"preview-bar\">Preview: <span class=\"filename\">" ++ filename ++ "</span></div>"
+    , "<div style=\"margin-top: 2rem;\">"
+    , bodyHtml
+    , "</div>"
+    , "<script>"
+    , "(function() {"
+    , "  var currentFile = '" ++ filename ++ "';"
+    , "  setInterval(function() {"
+    , "    fetch('/api/preview?file=' + encodeURIComponent(currentFile))"
+    , "      .then(function(r) { return r.text(); })"
+    , "      .then(function(html) {"
+    , "        var parser = new DOMParser();"
+    , "        var doc = parser.parseFromString(html, 'text/html');"
+    , "        var newContent = doc.querySelector('body > div:nth-child(2)');"
+    , "        var oldContent = document.querySelector('body > div:nth-child(2)');"
+    , "        if (newContent && oldContent && newContent.innerHTML !== oldContent.innerHTML) {"
+    , "          oldContent.innerHTML = newContent.innerHTML;"
+    , "          if (typeof renderMathInElement === 'function') {"
+    , "            renderMathInElement(oldContent, {"
+    , "              delimiters: ["
+    , "                {left: '\\\\[', right: '\\\\]', display: true},"
+    , "                {left: '\\\\(', right: '\\\\)', display: false}"
+    , "              ]"
+    , "            });"
+    , "          }"
+    , "        }"
+    , "      })"
+    , "      .catch(function() {});"
+    , "  }, 2000);"
+    , "})();"
+    , "</script>"
+    , "</body>"
+    , "</html>"
+    ]
 
 -- | CORS middleware allowing all origins
 corsMiddleware :: Middleware

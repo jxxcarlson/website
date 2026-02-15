@@ -11,6 +11,7 @@ module Utils
     , toSlug
     , stripFirstLine
     , stripFirstLineTags
+    , preprocessScriptaImport
     ) where
 
 import Data.List (isPrefixOf)
@@ -94,13 +95,74 @@ stripFirstLine = unlines . drop 1 . lines
 -- | Strip all tags from the first non-blank line
 -- Tags are words starting with '#'. If the line becomes empty after stripping, it's removed.
 stripFirstLineTags :: String -> String
-stripFirstLineTags content = unlines $ processLines (lines content)
+stripFirstLineTags content = unlines $ processTagLines (lines content)
   where
-    processLines [] = []
-    processLines (l:rest)
-        | all isSpace l = l : processLines rest  -- Preserve blank lines at start
+    processTagLines [] = []
+    processTagLines (l:rest)
+        | all isSpace l = l : processTagLines rest  -- Preserve blank lines at start
         | otherwise =
             let stripped = unwords $ filter (not . ("#" `isPrefixOf`)) $ words l
             in if null stripped || all isSpace stripped
                then rest  -- Remove the now-empty tag line
                else stripped : rest  -- Keep the line with remaining content
+
+-- | Preprocess Scripta-format documents
+-- Handles: | title\n<TITLE> format, [tags ...] format, and [image ...] format
+preprocessScriptaImport :: String -> String
+preprocessScriptaImport content =
+    let -- First pass: handle [image ...] blocks (may span multiple lines)
+        afterImage = processImageBlocks content
+        -- Second pass: handle line-based transformations
+        ls = lines afterImage
+        processed = processScriptaLines ls
+    in unlines processed
+  where
+    -- Process [image ...] blocks, which may span multiple lines
+    processImageBlocks [] = []
+    processImageBlocks s
+        | "[image " `isPrefixOf` s =
+            let afterOpen = drop 7 s  -- drop "[image "
+                (inner, rest) = spanToClosingBracket afterOpen
+                -- Remove line breaks and normalize whitespace
+                normalized = unwords $ words inner
+            in "| image\n" ++ normalized ++ "\n" ++ processImageBlocks rest
+        | otherwise = head s : processImageBlocks (tail s)
+
+    -- Find content up to closing bracket, handling nested content
+    spanToClosingBracket :: String -> (String, String)
+    spanToClosingBracket s = go [] s
+      where
+        go acc [] = (reverse acc, [])
+        go acc (']':rest) = (reverse acc, rest)
+        go acc (c:rest) = go (c:acc) rest
+
+    processScriptaLines [] = []
+    processScriptaLines (l:rest)
+        -- Handle | title header
+        | "| title" == dropWhile isSpace l =
+            case rest of
+                (titleLine:remaining) -> titleLine : processScriptaLines remaining
+                [] -> []
+        -- Handle [tags ...] line
+        | "[tags " `isPrefixOf` dropWhile isSpace l =
+            convertTagsLine l : processScriptaLines rest
+        | otherwise = l : processScriptaLines rest
+
+    -- Convert [tags post tag:physics] to #post #tag:physics
+    convertTagsLine line =
+        let trimmed = dropWhile isSpace line
+            -- Extract content between [tags and ]
+            inner = drop 6 trimmed  -- drop "[tags "
+            content' = takeWhile (/= ']') inner
+            tags = words content'
+            -- Convert each tag: "post" -> "#post", "tag:physics" -> "#tag:physics"
+            convertedTags = map convertTag tags
+        in unwords convertedTags
+
+    convertTag tag =
+        let cleaned = filter isValidTagChar tag
+        in "#" ++ cleaned
+
+    -- Valid tag characters: letters, digits, colon
+    isValidTagChar c = c `elem` ['a'..'z'] || c `elem` ['A'..'Z']
+                    || c `elem` ['0'..'9'] || c == ':'
