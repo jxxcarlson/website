@@ -1,10 +1,12 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE OverloadedRecordDot #-}
 {-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE ScopedTypeVariables #-}
 
 module Main where
 
 import Web.Scotty
+import Web.Scotty.Internal.Types (StatusError)
 import Network.Wai (Middleware)
 import Network.Wai.Middleware.Cors
     ( cors
@@ -18,8 +20,9 @@ import Data.Aeson (FromJSON, ToJSON, object, (.=))
 import GHC.Generics (Generic)
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
+import Control.Monad (forM)
 import Control.Monad.IO.Class (liftIO)
-import System.Directory (getHomeDirectory, getCurrentDirectory, doesFileExist)
+import System.Directory (getHomeDirectory, getCurrentDirectory, doesFileExist, listDirectory)
 import System.FilePath ((</>))
 import Text.Pandoc (runPure, readMarkdown, writeHtml5String, def)
 import Text.Pandoc.Options (ReaderOptions(..), WriterOptions(..), HTMLMathMethod(..), Extension(..), enableExtension)
@@ -29,6 +32,8 @@ import Data.Time.Format (formatTime, defaultTimeLocale)
 import Data.IORef
 import System.Process (createProcess, proc, terminateProcess, interruptProcessGroupOf, getProcessExitCode, ProcessHandle, CreateProcess(..))
 import Control.Exception (try, SomeException)
+import Data.List (sortBy, isPrefixOf)
+import Data.Ord (Down(..))
 
 import Grab (grabURL, GrabResult(..), OutputFormat(..))
 import Scripta (processScripta, LinkMap)
@@ -249,28 +254,35 @@ main = do
             setHeader "Content-Type" "text/html; charset=utf-8"
             html dashboardHtml
 
-        -- Preview endpoint: render archive file through Scripta→Pandoc pipeline
+        -- Preview endpoint: render archive file, or show file listing if no ?file= param
         get "/api/preview" $ do
-            name <- queryParam "file" :: ActionM String
             home <- liftIO getHomeDirectory
             let archivePath = home </> "Dropbox" </> "theARCHIVE"
-                fullPath = archivePath </> name
-            exists <- liftIO $ doesFileExist fullPath
-            if not exists
-                then do
-                    status status404
-                    json (object ["error" .= ("File not found" :: String)])
-                else do
-                    content <- liftIO $ readFile fullPath
-                    -- Force evaluation to avoid lazy IO issues
-                    _ <- liftIO $ return $! length content
-                    case renderPreview content of
-                        Left err -> do
-                            status status400
-                            json (object ["error" .= err])
-                        Right renderedHtml -> do
-                            setHeader "Content-Type" "text/html; charset=utf-8"
-                            Web.Scotty.html (TL.pack $ previewPage name renderedHtml)
+            fileParam <- (Right <$> (queryParam "file" :: ActionM String))
+                         `rescue` (\(_ :: StatusError) -> return (Left ()))
+            case fileParam of
+                Left _ -> do
+                    -- No file param: show listing page
+                    files <- liftIO $ listArchiveFiles archivePath
+                    setHeader "Content-Type" "text/html; charset=utf-8"
+                    Web.Scotty.html (TL.pack $ previewListPage files)
+                Right name -> do
+                    let fullPath = archivePath </> name
+                    exists <- liftIO $ doesFileExist fullPath
+                    if not exists
+                        then do
+                            status status404
+                            json (object ["error" .= ("File not found" :: String)])
+                        else do
+                            content <- liftIO $ readFile fullPath
+                            _ <- liftIO $ return $! length content
+                            case renderPreview content of
+                                Left err -> do
+                                    status status400
+                                    json (object ["error" .= err])
+                                Right renderedHtml -> do
+                                    setHeader "Content-Type" "text/html; charset=utf-8"
+                                    Web.Scotty.html (TL.pack $ previewPage name renderedHtml)
 
 -- | Dashboard HTML served inline
 dashboardHtml :: TL.Text
@@ -437,6 +449,80 @@ sanitizeTitle = take 40 . map dashify . filter isValid
     isValid c = c `elem` (['a'..'z'] ++ ['A'..'Z'] ++ ['0'..'9'] ++ " -")
     dashify ' ' = '-'
     dashify c   = c
+
+-- | List .txt files in archive, sorted newest first, with titles
+listArchiveFiles :: FilePath -> IO [(String, String)]
+listArchiveFiles dir = do
+    entries <- listDirectory dir
+    let txtFiles = filter (\f -> ".txt" `isSuffixOf` f) entries
+        sorted = sortBy (\a b -> compare (Down a) (Down b)) txtFiles
+    forM sorted $ \f -> do
+        content <- readFile (dir </> f)
+        let title = case lines content of
+                (l:_) | not (null l) -> l
+                _ -> f
+        _ <- return $! length title
+        return (f, title)
+  where
+    isSuffixOf suffix s = reverse suffix `isPrefixOf` reverse s
+
+-- | HTML page listing archive files with search
+previewListPage :: [(String, String)] -> String
+previewListPage files = unlines
+    [ "<!DOCTYPE html>"
+    , "<html lang=\"en\"><head>"
+    , "<meta charset=\"UTF-8\">"
+    , "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
+    , "<title>Archive Preview</title>"
+    , "<style>"
+    , "  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;"
+    , "         max-width: 700px; margin: 0 auto; padding: 2rem; background: #fafafa; color: #333; }"
+    , "  h1 { font-size: 1.3rem; color: #555; margin-bottom: 1rem; }"
+    , "  input { width: 100%; padding: 0.5rem; font-size: 1rem; border: 1px solid #ccc;"
+    , "          border-radius: 4px; margin-bottom: 1rem; box-sizing: border-box; }"
+    , "  input:focus { outline: none; border-color: #888; }"
+    , "  ul { list-style: none; padding: 0; }"
+    , "  li { padding: 0.4rem 0; border-bottom: 1px solid #eee; }"
+    , "  li a { color: #2266cc; text-decoration: none; }"
+    , "  li a:hover { text-decoration: underline; }"
+    , "  .filename { color: #999; font-size: 0.8rem; margin-left: 0.5rem; }"
+    , "  .count { color: #999; font-size: 0.85rem; margin-bottom: 0.5rem; }"
+    , "</style>"
+    , "</head><body>"
+    , "<h1>Archive Preview</h1>"
+    , "<input type=\"text\" id=\"search\" placeholder=\"Search files...\" autofocus>"
+    , "<div class=\"count\" id=\"count\">" ++ show (length files) ++ " files</div>"
+    , "<ul id=\"file-list\">"
+    , concatMap renderFileItem files
+    , "</ul>"
+    , "<script>"
+    , "var search = document.getElementById('search');"
+    , "var items = document.querySelectorAll('#file-list li');"
+    , "var countEl = document.getElementById('count');"
+    , "search.addEventListener('input', function() {"
+    , "  var q = this.value.toLowerCase();"
+    , "  var visible = 0;"
+    , "  items.forEach(function(li) {"
+    , "    var match = li.textContent.toLowerCase().indexOf(q) >= 0;"
+    , "    li.style.display = match ? '' : 'none';"
+    , "    if (match) visible++;"
+    , "  });"
+    , "  countEl.textContent = visible + ' files';"
+    , "});"
+    , "</script>"
+    , "</body></html>"
+    ]
+  where
+    renderFileItem (filename, title) =
+        "<li><a href=\"/api/preview?file=" ++ filename ++ "\">"
+        ++ escapeHtml title ++ "</a>"
+        ++ "<span class=\"filename\">" ++ filename ++ "</span></li>\n"
+    escapeHtml [] = []
+    escapeHtml ('<':xs) = "&lt;" ++ escapeHtml xs
+    escapeHtml ('>':xs) = "&gt;" ++ escapeHtml xs
+    escapeHtml ('&':xs) = "&amp;" ++ escapeHtml xs
+    escapeHtml ('"':xs) = "&quot;" ++ escapeHtml xs
+    escapeHtml (c:xs) = c : escapeHtml xs
 
 -- | Render archive file content through Scripta→Pandoc pipeline
 renderPreview :: String -> Either String String
