@@ -83,6 +83,11 @@ app.html
 document.pdf
 ```
 
+Headings (standard Markdown):
+- `# Title` - top-level section (h1)
+- `## Title` - level two section (h2)
+- `### Title` - level three section (h3)
+
 Inline elements (within text):
 - `[i text]`, `[b text]`, `[u text]` - italic, bold, underline
 - `[ilink ZETTELID]` or `[ilink ZETTELID "custom text"]` - internal links

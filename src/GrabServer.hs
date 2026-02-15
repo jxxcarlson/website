@@ -37,7 +37,7 @@ import Data.Ord (Down(..))
 
 import Grab (grabURL, GrabResult(..), OutputFormat(..))
 import Scripta (processScripta, LinkMap)
-import Utils (preprocessScriptaImport, stripFirstLine, stripFirstLineTags)
+import Utils (preprocessScriptaImport, extractFirstLineTitle)
 
 -- | JSON request body for /api/grab
 data GrabRequest = GrabRequest
@@ -458,10 +458,9 @@ listArchiveFiles dir = do
         sorted = sortBy (\a b -> compare (Down a) (Down b)) txtFiles
     forM sorted $ \f -> do
         content <- readFile (dir </> f)
-        let title = case lines content of
-                (l:_) | not (null l) -> l
-                _ -> f
-        _ <- return $! length title
+        _ <- return $! length content
+        let processed = preprocessScriptaImport content
+            title = extractFirstLineTitle processed
         return (f, title)
   where
     isSuffixOf suffix s = reverse suffix `isPrefixOf` reverse s
@@ -527,13 +526,25 @@ previewListPage files = unlines
     escapeHtml ('"':xs) = "&quot;" ++ escapeHtml xs
     escapeHtml (c:xs) = c : escapeHtml xs
 
+-- | Check if a line consists entirely of hashtag words (#post, #tag:physics)
+-- but not Markdown headings (# Title, ## Section)
+isPureTagLine :: String -> Bool
+isPureTagLine line =
+    let ws = words line
+    in not (null ws) && all isHashTag ws
+  where
+    isHashTag w = "#" `isPrefixOf` w && length w > 1
+               && all isTagWordChar (tail w)
+    isTagWordChar c = c `elem` ['a'..'z'] || c `elem` ['A'..'Z']
+                   || c `elem` ['0'..'9'] || c == ':'
+
 -- | Render archive file content through Scripta→Pandoc pipeline
 renderPreview :: String -> Either String String
 renderPreview content =
-    let processed = processScripta M.empty
-                  $ stripFirstLineTags
-                  $ stripFirstLine
-                  $ preprocessScriptaImport content
+    let preprocessed = preprocessScriptaImport content
+        -- Keep title and headings, strip tag-only lines (#post #tag:physics)
+        filtered = unlines $ filter (not . isPureTagLine) $ lines preprocessed
+        processed = processScripta M.empty filtered
         readerOpts = def { readerExtensions = enableExtension Ext_raw_html
                                             $ enableExtension Ext_markdown_in_html_blocks
                                             $ enableExtension Ext_tex_math_dollars

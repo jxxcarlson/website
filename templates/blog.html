@@ -247,6 +247,7 @@ if (!hasAnySequence) {
 
 // Current sort state
 let currentSort = 'created';
+let sortReversed = false;
 
 // Strip leading articles for alphabetical sorting
 function stripArticles(title) {
@@ -257,30 +258,29 @@ function stripArticles(title) {
 function sortItems() {
     const list = document.getElementById('post-list');
     const items = Array.from(list.querySelectorAll('li'));
+    const rev = sortReversed ? -1 : 1;
 
     items.sort((a, b) => {
         switch (currentSort) {
             case 'created':
-                // Original order (lowest index = most recent)
-                return parseInt(a.dataset.createdIndex) - parseInt(b.dataset.createdIndex);
+                return rev * (parseInt(b.dataset.createdIndex) - parseInt(a.dataset.createdIndex));
             case 'modified':
-                // Higher mtime = more recently modified, so reverse
-                return parseInt(b.dataset.mtime || 0) - parseInt(a.dataset.mtime || 0);
-            case 'alpha':
-                // Alphabetical by title, ignoring articles
+                return rev * (parseInt(b.dataset.mtime || 0) - parseInt(a.dataset.mtime || 0));
+            case 'alpha': {
                 const titleA = stripArticles(a.dataset.title || a.textContent);
                 const titleB = stripArticles(b.dataset.title || b.textContent);
-                return titleA.localeCompare(titleB);
-            case 'seq-asc':
-                // Sequence ascending (1, 2, 3...), items without sequence go to end
+                return rev * titleA.localeCompare(titleB);
+            }
+            case 'seq-asc': {
                 const seqA = a.dataset.seq ? parseInt(a.dataset.seq) : Infinity;
                 const seqB = b.dataset.seq ? parseInt(b.dataset.seq) : Infinity;
-                return seqA - seqB;
-            case 'seq-desc':
-                // Sequence descending (3, 2, 1...), items without sequence go to end
+                return rev * (seqA - seqB);
+            }
+            case 'seq-desc': {
                 const seqAd = a.dataset.seq ? parseInt(a.dataset.seq) : -Infinity;
                 const seqBd = b.dataset.seq ? parseInt(b.dataset.seq) : -Infinity;
-                return seqBd - seqAd;
+                return rev * (seqBd - seqAd);
+            }
             default:
                 return 0;
         }
@@ -295,9 +295,18 @@ function sortItems() {
 
 // Sort button handlers
 document.querySelectorAll('.sort-btn').forEach(btn => {
-    btn.addEventListener('click', function() {
+    btn.addEventListener('click', function(e) {
         // Deactivate random button if active
         document.querySelector('.random-btn').classList.remove('active');
+
+        // Option-click toggles reverse; normal click resets to default direction
+        if (e.altKey && currentSort === this.dataset.sort) {
+            sortReversed = !sortReversed;
+        } else if (e.altKey) {
+            sortReversed = true;
+        } else {
+            sortReversed = false;
+        }
 
         // Update active state
         document.querySelectorAll('.sort-btn').forEach(b => b.classList.remove('active'));
