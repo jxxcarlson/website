@@ -543,8 +543,12 @@ renderPreview :: String -> Either String String
 renderPreview content =
     let preprocessed = preprocessScriptaImport content
         -- Keep title and headings, strip tag-only lines (#post #tag:physics)
-        filtered = unlines $ filter (not . isPureTagLine) $ lines preprocessed
-        processed = processScripta M.empty filtered
+        filteredLines = filter (not . isPureTagLine) $ lines preprocessed
+        -- Promote the first line to an h1 if it isn't already a heading
+        promoted = case filteredLines of
+            (l:rest) | not ("#" `isPrefixOf` l) -> ("# " ++ l) : rest
+            other -> other
+        processed = processScripta M.empty (unlines promoted)
         readerOpts = def { readerExtensions = enableExtension Ext_raw_html
                                             $ enableExtension Ext_markdown_in_html_blocks
                                             $ enableExtension Ext_tex_math_dollars

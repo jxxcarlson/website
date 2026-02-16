@@ -139,7 +139,7 @@ preprocessScriptaImport content =
     processScriptaLines [] = []
     processScriptaLines (l:rest)
         -- Handle | title header
-        | "| title" == dropWhile isSpace l =
+        | "| title" == (reverse . dropWhile isSpace . reverse . dropWhile isSpace) l =
             case rest of
                 (titleLine:remaining) -> titleLine : processScriptaLines remaining
                 [] -> []
